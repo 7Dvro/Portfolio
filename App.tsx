@@ -29,11 +29,17 @@ import {
   Monitor,
   Smartphone,
   PenTool,
-  ArrowRight
+  ArrowRight,
+  Settings,
+  Lock,
+  FileText
 } from 'lucide-react';
 import { RESUME_DATA } from './constants';
 import { ChatWidget } from './components/ChatWidget';
-import { ProjectCategory, Project } from './types';
+import { ProjectCategory, Project, ResumeData } from './types';
+import { AdminDashboard } from './components/AdminDashboard';
+import { dataManager } from './utils/dataManager';
+import { generateATSPdf } from './utils/pdfGenerator';
 
 // --- Shared UI Components ---
 
@@ -103,7 +109,7 @@ const ProjectGallery = ({
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  data: typeof RESUME_DATA['en'];
+  data: ResumeData;
   lang: 'en' | 'ar'; 
 }) => {
   const [filter, setFilter] = useState<ProjectCategory>('all');
@@ -236,11 +242,99 @@ const ProjectGallery = ({
   );
 };
 
+// --- Login Modal ---
+
+const LoginModal = ({ 
+    isOpen, 
+    onClose, 
+    onSuccess, 
+    correctPassword 
+}: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    onSuccess: () => void; 
+    correctPassword?: string;
+}) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        
+        // Default password is 'admin' if config is missing. 
+        // For this specific request, we check hardcoded email and the configured password
+        const targetPass = correctPassword || 'admin@123';
+        const targetEmail = "mohemadmuzamil@gmail.com";
+
+        if (email.toLowerCase() === targetEmail.toLowerCase() && password === targetPass) {
+            onSuccess();
+            setEmail('');
+            setPassword('');
+            setError('');
+        } else {
+            setError('Invalid credentials');
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl relative"
+            >
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+                    <X size={20} />
+                </button>
+                <div className="flex flex-col items-center mb-6">
+                    <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                        <Lock size={24} className="text-cyber-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">Admin Access</h3>
+                    <p className="text-sm text-slate-400">Verify your identity</p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <input 
+                            type="email" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-cyber-500 transition-colors"
+                            placeholder="Email"
+                            autoFocus
+                        />
+                    </div>
+                    <div>
+                        <input 
+                            type="password" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-cyber-500 transition-colors"
+                            placeholder="Password"
+                        />
+                    </div>
+                    {error && <p className="text-red-400 text-xs mt-1 text-center">{error}</p>}
+                    <button 
+                        type="submit"
+                        className="w-full bg-cyber-600 hover:bg-cyber-500 text-white font-medium py-2 rounded-lg transition-colors"
+                    >
+                        Login
+                    </button>
+                </form>
+            </motion.div>
+        </div>
+    );
+};
+
 // --- Sections ---
 
 type Lang = 'en' | 'ar';
 
-const Navbar = ({ lang, setLang, t }: { lang: Lang, setLang: (l: Lang) => void, t: any }) => {
+const Navbar = ({ lang, setLang, t, onOpenLogin }: { lang: Lang, setLang: (l: Lang) => void, t: any, onOpenLogin: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
@@ -285,8 +379,18 @@ const Navbar = ({ lang, setLang, t }: { lang: Lang, setLang: (l: Lang) => void, 
           <div className="flex-shrink-0">
              <a 
                href="#home" 
-               onClick={scrollToTop}
-               className="text-xl font-display font-bold bg-gradient-to-r from-cyber-400 to-indigo-400 bg-clip-text text-transparent"
+               onClick={(e) => { 
+                   if (e.ctrlKey) {
+                       // Keep Ctrl+Click behavior for normal link just in case
+                       scrollToTop(e);
+                   } else {
+                       // Trigger Login on Click
+                       e.preventDefault(); 
+                       onOpenLogin();
+                   }
+               }}
+               className="text-xl font-display font-bold bg-gradient-to-r from-cyber-400 to-indigo-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
+               title="Admin Login"
              >
                M.Elrais
              </a>
@@ -371,7 +475,21 @@ const Navbar = ({ lang, setLang, t }: { lang: Lang, setLang: (l: Lang) => void, 
   );
 };
 
-const Hero = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
+const Hero = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => void }) => {
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+
+  const handleDownload = (lang: 'en' | 'ar') => {
+      setIsGenerating(lang);
+      // We always use English data for ATS PDF generation to ensure compatibility
+      // as standard fonts do not support Arabic characters.
+      const atsData = dataManager.getData('en');
+      
+      setTimeout(() => {
+          generateATSPdf(atsData, lang);
+          setIsGenerating(null);
+      }, 500);
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
       {/* Background decoration */}
@@ -404,22 +522,39 @@ const Hero = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
               {data.ui.hero.roleDesc}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              <a 
-                href="#projects" 
-                className="px-8 py-3 bg-cyber-600 hover:bg-cyber-500 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-cyber-500/25 flex items-center justify-center gap-2"
+            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center">
+              <button 
+                onClick={onOpenGallery}
+                className="w-full sm:w-auto px-6 py-3 bg-cyber-600 hover:bg-cyber-500 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-cyber-500/25 flex items-center justify-center gap-2"
               >
                 {data.ui.hero.viewWork} <Briefcase size={18} />
-              </a>
-              <a 
-                href={data.personalInfo.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
-              >
-                LinkedIn <Linkedin size={18} />
-              </a>
+              </button>
+              
+              <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => handleDownload('en')}
+                    disabled={!!isGenerating}
+                    className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                  >
+                    {isGenerating === 'en' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    CV (EN)
+                  </button>
+                  <button
+                    onClick={() => handleDownload('ar')}
+                    disabled={!!isGenerating}
+                    className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                  >
+                    {isGenerating === 'ar' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    CV (AR)
+                  </button>
+              </div>
             </div>
+            
+             <div className="mt-6 flex justify-center md:justify-start gap-4">
+                  <a href={data.personalInfo.linkedin} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors"><Linkedin size={24} /></a>
+                  <a href={data.personalInfo.github} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors"><Github size={24} /></a>
+                  <a href={data.personalInfo.website} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors"><Globe size={24} /></a>
+             </div>
           </motion.div>
         </div>
 
@@ -430,14 +565,14 @@ const Hero = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
             transition={{ duration: 0.8 }}
             className="relative w-72 h-72 md:w-96 md:h-96 mx-auto"
           >
-             {/* Profile Image Placeholder using Picsum or style if no real image */}
+             {/* Profile Image */}
              <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-cyber-500/30 relative z-10 bg-slate-800">
                 <img 
-                  src="https://picsum.photos/800/800?grayscale" 
-                  alt="Mohamed Elrais" 
-                  className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-500 hover:scale-105 transform"
+                  src={data.personalInfo.image || "https://picsum.photos/800/800?grayscale"} 
+                  alt={data.personalInfo.name} 
+                  className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-500 hover:scale-105 transform"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-60"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-40"></div>
              </div>
              {/* Decor elements */}
              <div className="absolute -top-4 -right-4 rtl:right-auto rtl:-left-4 w-full h-full border-2 border-cyber-700/50 rounded-2xl -z-10" />
@@ -449,461 +584,283 @@ const Hero = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
   );
 };
 
-const About = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
-  return (
-    <section id="about" className="py-20 bg-dark-bg">
-      <div className="max-w-4xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.about} subtitle={data.ui.sectionTitles.journey} />
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-cyber-900/50">
-           <div className="prose prose-invert max-w-none text-slate-300">
-             <p className="text-lg leading-relaxed mb-6">
-               {data.personalInfo.objective}
-             </p>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-               <div className="flex items-start gap-4">
-                 <div className="p-3 rounded-lg bg-cyber-900/30 text-cyber-400">
-                   <GraduationCap size={24} />
-                 </div>
-                 <div>
-                   <h4 className="font-bold text-slate-100 mb-1">{data.ui.sectionTitles.credentials}</h4>
-                   {data.education.map(edu => (
-                     <div key={edu.id} className="mb-2">
-                       <p className="text-sm font-semibold text-slate-200">{edu.degree}</p>
-                       <p className="text-xs text-slate-400">{edu.institution} | {edu.status}</p>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-               
-               <div className="flex items-start gap-4">
-                 <div className="p-3 rounded-lg bg-indigo-900/30 text-indigo-400">
-                   <Globe size={24} />
-                 </div>
-                 <div>
-                   <h4 className="font-bold text-slate-100 mb-1">Languages</h4>
-                   <p className="text-sm text-slate-300">Arabic (Native)</p>
-                   <p className="text-sm text-slate-300">English (Intermediate)</p>
-                 </div>
-               </div>
-             </div>
-           </div>
-        </Card>
+const About = ({ data }: { data: ResumeData }) => (
+  <section id="about" className="py-20 relative">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SectionHeading title={data.ui.sectionTitles.about} subtitle={data.ui.sectionTitles.journey} />
+      <div className="bg-dark-card border border-slate-800 rounded-2xl p-8 md:p-12 shadow-xl">
+        <p className="text-lg text-slate-300 leading-relaxed">
+          {data.personalInfo.objective}
+        </p>
       </div>
-    </section>
-  );
-};
-
-const Experience = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
-  return (
-    <section id="experience" className="py-20 bg-slate-900/50">
-      <div className="max-w-5xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.experience} subtitle={data.ui.sectionTitles.careerPath} />
-        <div className="relative border-l-2 border-slate-800 ms-3 md:ms-6 space-y-12">
-          {data.experience.map((exp, index) => (
-            <motion.div 
-              key={exp.id}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="relative ps-8 md:ps-12"
-            >
-              <span className="absolute -start-[9px] top-0 h-4 w-4 rounded-full bg-cyber-500 border-4 border-slate-900" />
-              
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-                <h4 className="text-xl font-bold text-slate-100">{exp.role}</h4>
-                <span className="text-sm text-cyber-400 font-medium px-2 py-1 bg-cyber-950/30 rounded border border-cyber-900/50 inline-block w-fit mt-1 sm:mt-0">
-                  {exp.period}
-                </span>
-              </div>
-              
-              <h5 className="text-indigo-400 font-medium mb-4">{exp.company}</h5>
-              
-              <ul className="space-y-2">
-                {exp.description.map((desc, i) => (
-                  <li key={i} className="flex items-start gap-2 text-slate-400 text-sm">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-600 flex-shrink-0" />
-                    {desc}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Skills = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
-  const getIcon = (category: string) => {
-    // Basic Keyword matching for Arabic/English compatibility
-    if (category.includes('Programming') || category.includes('برمجة')) return <Terminal size={20} />;
-    if (category.includes('Frameworks') || category.includes('أطر')) return <Code size={20} />;
-    if (category.includes('Databases') || category.includes('بيانات')) return <Database size={20} />;
-    return <Server size={20} />;
-  };
-
-  return (
-    <section id="skills" className="py-20 bg-dark-bg">
-      <div className="max-w-6xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.skills} subtitle={data.ui.sectionTitles.expertise} />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {data.skills.map((skillGroup, idx) => (
-            <motion.div
-              key={skillGroup.category}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-            >
-              <Card className="h-full hover:bg-slate-800/50">
-                <div className="flex items-center gap-3 mb-6 border-b border-slate-700 pb-3">
-                  <div className="text-cyber-400">{getIcon(skillGroup.category)}</div>
-                  <h4 className="font-bold text-slate-100">{skillGroup.category}</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {skillGroup.skills.map(skill => (
-                    <Badge key={skill}>{skill}</Badge>
-                  ))}
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Projects = ({ data, onOpenGallery }: { data: typeof RESUME_DATA['en'], onOpenGallery: () => void }) => {
-  return (
-    <section id="projects" className="py-20 bg-slate-900/50">
-      <div className="max-w-6xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.projects} subtitle={data.ui.sectionTitles.portfolio} />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {/* Display only first 3 projects in the preview */}
-          {data.projects.slice(0, 3).map((project, idx) => (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-            >
-              <Card className="h-full flex flex-col justify-between group cursor-pointer hover:shadow-cyber-900/20">
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-slate-800 rounded-lg text-cyber-400 group-hover:text-cyber-300 transition-colors">
-                      <Code size={24} />
-                    </div>
-                    {project.link && (
-                      <a href={project.link} target="_blank" rel="noopener noreferrer" className="flex gap-2 text-slate-500 hover:text-white transition-colors" title="Visit">
-                        <ExternalLink size={18} />
-                      </a>
-                    )}
-                  </div>
-                  
-                  <h4 className="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyber-400 transition-colors">
-                    {project.title}
-                  </h4>
-                  <p className="text-slate-400 text-sm mb-4 line-clamp-2">
-                    {project.description}
-                  </p>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-slate-800">
-                  <p className="text-xs font-mono text-indigo-400 truncate">
-                    {project.techStack}
-                  </p>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="flex justify-center">
-            <button 
-              onClick={onOpenGallery}
-              className="group flex items-center gap-2 px-8 py-3 bg-transparent border border-cyber-500 text-cyber-400 rounded-full hover:bg-cyber-500 hover:text-white transition-all duration-300 shadow-lg hover:shadow-cyber-500/25"
-            >
-              <LayoutGrid size={20} />
-              <span className="font-medium">{data.ui.gallery.title}</span>
-              <ArrowRight size={18} className="group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform" />
-            </button>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Certifications = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
-  return (
-    <section id="certifications" className="py-20 bg-dark-bg">
-      <div className="max-w-6xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.certifications} subtitle={data.ui.sectionTitles.credentials} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.certifications.map((cert, idx) => (
-            <motion.div
-              key={cert.id}
-              initial={{ opacity: 0, x: -10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.05 }}
-              className="flex items-center gap-3 p-4 bg-slate-800/30 border border-slate-800 rounded-lg hover:border-cyber-600/50 transition-colors"
-            >
-              <div className="text-green-500 flex-shrink-0">
-                <Shield size={18} />
-              </div>
-              <span className="text-slate-300 text-sm font-medium">{cert.title}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Contact = ({ data }: { data: typeof RESUME_DATA['en'] }) => {
-  const [formState, setFormState] = useState({ name: '', email: '', message: '' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError('');
-
-    try {
-      // Use FormSubmit.co via AJAX
-      const response = await fetch("https://formsubmit.co/ajax/mohemadmuzamil@gmail.com", {
-        method: "POST",
-        headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            name: formState.name,
-            email: formState.email,
-            message: formState.message,
-            _subject: `Portfolio Contact from ${formState.name}`
-        })
-      });
-
-      if (response.ok) {
-        setIsSuccess(true);
-        setFormState({ name: '', email: '', message: '' });
-      } else {
-        setError(data.ui.contact.form.error);
-      }
-    } catch (err) {
-      setError(data.ui.contact.form.error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <section id="contact" className="py-20 bg-slate-900/50 border-t border-slate-800">
-      <div className="max-w-4xl mx-auto px-4">
-        <SectionHeading title={data.ui.sectionTitles.contact} subtitle={data.ui.sectionTitles.connect} />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          <div>
-            <h4 className="text-2xl font-bold text-white mb-6">{data.ui.contact.title}</h4>
-            <p className="text-slate-400 mb-8">
-              {data.ui.contact.subtitle}
-            </p>
-            
-            <div className="space-y-6">
-              <a href={`mailto:${data.personalInfo.email}`} className="flex items-center gap-4 text-slate-300 hover:text-cyber-400 transition-colors">
-                <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                  <Mail size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Email</p>
-                  <p className="font-medium">{data.personalInfo.email}</p>
-                </div>
-              </a>
-              
-              <a href={`tel:${data.personalInfo.phone}`} className="flex items-center gap-4 text-slate-300 hover:text-cyber-400 transition-colors">
-                <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                  <Phone size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Phone</p>
-                  <p className="font-medium">{data.personalInfo.phone}</p>
-                </div>
-              </a>
-              
-              <div className="flex items-center gap-4 text-slate-300">
-                <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                  <MapPin size={20} />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Location</p>
-                  <p className="font-medium">{data.personalInfo.location}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-4 mt-8 flex-wrap">
-              <a href={data.personalInfo.website} target="_blank" rel="noreferrer" className="p-3 bg-slate-800 rounded-lg hover:bg-cyber-600 text-white transition-colors">
-                <Globe size={20} />
-              </a>
-              <a href={data.personalInfo.linkedin} target="_blank" rel="noreferrer" className="p-3 bg-slate-800 rounded-lg hover:bg-blue-600 text-white transition-colors">
-                <Linkedin size={20} />
-              </a>
-              <a href={data.personalInfo.github} target="_blank" rel="noreferrer" className="p-3 bg-slate-800 rounded-lg hover:bg-gray-700 text-white transition-colors">
-                <Github size={20} />
-              </a>
-              <a href={data.personalInfo.facebook} target="_blank" rel="noreferrer" className="p-3 bg-slate-800 rounded-lg hover:bg-blue-700 text-white transition-colors">
-                <Facebook size={20} />
-              </a>
-              <a href={data.personalInfo.stackoverflow} target="_blank" rel="noreferrer" className="p-3 bg-slate-800 rounded-lg hover:bg-orange-600 text-white transition-colors">
-                <Layers size={20} />
-              </a>
-            </div>
-          </div>
-
-          <Card className="bg-slate-800/30">
-             {isSuccess ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center h-full py-12 text-center"
-              >
-                <div className="w-16 h-16 bg-green-900/30 rounded-full flex items-center justify-center mb-4 text-green-400">
-                  <CheckCircle size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{data.ui.contact.form.success}</h3>
-                <button 
-                  onClick={() => setIsSuccess(false)}
-                  className="text-cyber-400 hover:text-cyber-300 text-sm mt-4 underline"
-                >
-                  Send another message
-                </button>
-              </motion.div>
-            ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.name}</label>
-                <input 
-                  type="text" 
-                  value={formState.name}
-                  onChange={e => setFormState({...formState, name: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-cyber-500 focus:border-cyber-500 outline-none" 
-                  placeholder=""
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.email}</label>
-                <input 
-                  type="email" 
-                  value={formState.email}
-                  onChange={e => setFormState({...formState, email: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-cyber-500 focus:border-cyber-500 outline-none" 
-                  placeholder=""
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.message}</label>
-                <textarea 
-                  rows={4} 
-                  value={formState.message}
-                  onChange={e => setFormState({...formState, message: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-1 focus:ring-cyber-500 focus:border-cyber-500 outline-none" 
-                  placeholder=""
-                  required
-                />
-              </div>
-              
-              {error && (
-                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 p-3 rounded-lg">
-                  <AlertCircle size={16} />
-                  {error}
-                </div>
-              )}
-
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full bg-cyber-600 hover:bg-cyber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    {data.ui.contact.form.sending}
-                  </>
-                ) : (
-                  <>
-                    {data.ui.contact.form.send} <SendIconLucide size={16} />
-                  </>
-                )}
-              </button>
-            </form>
-            )}
-          </Card>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Footer = ({ data }: { data: typeof RESUME_DATA['en'] }) => (
-  <footer className="bg-dark-bg border-t border-slate-800 py-8 text-center text-slate-500 text-sm">
-    <p>© {new Date().getFullYear()} {data.personalInfo.name}. {data.ui.footer}</p>
-  </footer>
+    </div>
+  </section>
 );
 
-export default function App() {
-  const [lang, setLang] = useState<Lang>('en');
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+const ExperienceSection = ({ data }: { data: ResumeData }) => (
+  <section id="experience" className="py-20 bg-slate-900/30">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SectionHeading title={data.ui.sectionTitles.experience} subtitle={data.ui.sectionTitles.careerPath} />
+      <div className="space-y-8">
+        {data.experience.map((exp) => (
+          <Card key={exp.id} className="relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-cyber-600/50 group-hover:bg-cyber-500 transition-colors" />
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4 pl-4">
+              <div>
+                <h3 className="text-xl font-bold text-white group-hover:text-cyber-400 transition-colors">{exp.role}</h3>
+                <div className="flex items-center gap-2 text-cyber-300 mt-1">
+                  <Briefcase size={16} />
+                  <span className="font-medium">{exp.company}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 bg-slate-900/50 px-3 py-1 rounded-full text-sm whitespace-nowrap">
+                <div className="w-2 h-2 rounded-full bg-cyber-500 animate-pulse" />
+                {exp.period}
+              </div>
+            </div>
+            <ul className="space-y-2 pl-4">
+              {exp.description.map((desc, i) => (
+                <li key={i} className="flex items-start gap-3 text-slate-400 text-sm md:text-base">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyber-700 flex-shrink-0" />
+                  {desc}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
-  // Update document direction when language changes
+const SkillsSection = ({ data }: { data: ResumeData }) => (
+  <section id="skills" className="py-20">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SectionHeading title={data.ui.sectionTitles.skills} subtitle={data.ui.sectionTitles.expertise} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {data.skills.map((category, idx) => (
+          <Card key={idx} className="h-full">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <span className="p-1.5 bg-cyber-900/50 rounded text-cyber-400">
+                 {idx === 0 ? <Terminal size={18} /> : 
+                  idx === 1 ? <Layers size={18} /> : 
+                  idx === 2 ? <Database size={18} /> : <Shield size={18} />}
+              </span>
+              {category.category}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {category.skills.map((skill) => (
+                <Badge key={skill} className="hover:bg-cyber-900 transition-colors cursor-default">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const ProjectsPreviewSection = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => void }) => (
+  <section id="projects" className="py-20 bg-slate-900/30">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SectionHeading title={data.ui.sectionTitles.projects} subtitle={data.ui.sectionTitles.portfolio} />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+        {data.projects.slice(0, 3).map((project) => (
+          <Card key={project.id} className="group cursor-pointer h-full flex flex-col" onClick={onOpenGallery}>
+            <div className="h-48 -mx-6 -mt-6 mb-6 overflow-hidden bg-slate-800 relative">
+               {project.image ? (
+                   <img src={project.image} alt={project.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+               ) : (
+                   <div className="flex items-center justify-center h-full text-slate-600"><Code size={40} /></div>
+               )}
+               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white font-medium flex items-center gap-2"><ExternalLink size={16} /> View Details</span>
+               </div>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyber-400 transition-colors">{project.title}</h3>
+            <p className="text-slate-400 text-sm mb-4 line-clamp-2 flex-1">{project.description}</p>
+            <div className="flex flex-wrap gap-2 mt-auto">
+                {project.techStack.split(',').slice(0,3).map((t, i) => (
+                    <span key={i} className="text-xs text-indigo-300 bg-indigo-900/20 px-2 py-1 rounded">{t}</span>
+                ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="text-center">
+        <button 
+          onClick={onOpenGallery}
+          className="px-8 py-3 bg-transparent border border-cyber-600 text-cyber-400 hover:bg-cyber-600 hover:text-white rounded-full font-medium transition-all flex items-center gap-2 mx-auto group"
+        >
+          {data.ui.gallery.title} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+    </div>
+  </section>
+);
+
+const CertificationsSection = ({ data }: { data: ResumeData }) => (
+  <section id="certifications" className="py-20">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SectionHeading title={data.ui.sectionTitles.certifications} subtitle={data.ui.sectionTitles.credentials} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.certifications.map((cert) => (
+          <div key={cert.id} className="flex items-start gap-4 p-4 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-cyber-700/50 transition-colors">
+            <div className="p-2 bg-cyber-900/30 rounded-lg text-cyber-400 shrink-0">
+              <Award size={24} />
+            </div>
+            <div>
+              <h4 className="text-white font-medium">{cert.title}</h4>
+              {cert.issuer && <p className="text-sm text-slate-500 mt-1">{cert.issuer}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const ContactSection = ({ data }: { data: ResumeData }) => (
+    <section id="contact" className="py-20 bg-slate-900/30">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <SectionHeading title={data.ui.sectionTitles.contact} subtitle={data.ui.sectionTitles.connect} />
+            <p className="text-slate-400 mb-12">{data.ui.contact.subtitle}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <a href={`mailto:${data.personalInfo.email}`} className="flex flex-col items-center p-6 bg-dark-card border border-slate-800 rounded-xl hover:border-cyber-500 transition-colors group">
+                    <div className="w-12 h-12 bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
+                        <Mail size={24} />
+                    </div>
+                    <span className="text-sm text-slate-400">Email</span>
+                    <span className="text-white font-medium mt-1">{data.personalInfo.email}</span>
+                </a>
+                <a href={`tel:${data.personalInfo.phone}`} className="flex flex-col items-center p-6 bg-dark-card border border-slate-800 rounded-xl hover:border-cyber-500 transition-colors group">
+                    <div className="w-12 h-12 bg-green-900/30 rounded-full flex items-center justify-center text-green-400 mb-4 group-hover:scale-110 transition-transform">
+                        <Phone size={24} />
+                    </div>
+                    <span className="text-sm text-slate-400">Phone</span>
+                    <span className="text-white font-medium mt-1">{data.personalInfo.phone}</span>
+                </a>
+                <div className="flex flex-col items-center p-6 bg-dark-card border border-slate-800 rounded-xl hover:border-cyber-500 transition-colors group">
+                    <div className="w-12 h-12 bg-red-900/30 rounded-full flex items-center justify-center text-red-400 mb-4 group-hover:scale-110 transition-transform">
+                        <MapPin size={24} />
+                    </div>
+                    <span className="text-sm text-slate-400">Location</span>
+                    <span className="text-white font-medium mt-1">{data.personalInfo.location}</span>
+                </div>
+            </div>
+
+            <form className="max-w-lg mx-auto space-y-4 text-left" onSubmit={(e) => e.preventDefault()}>
+                <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.name}</label>
+                    <input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:border-cyber-500 focus:ring-1 focus:ring-cyber-500 outline-none transition-all" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.email}</label>
+                    <input type="email" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:border-cyber-500 focus:ring-1 focus:ring-cyber-500 outline-none transition-all" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">{data.ui.contact.form.message}</label>
+                    <textarea rows={4} className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:border-cyber-500 focus:ring-1 focus:ring-cyber-500 outline-none transition-all" />
+                </div>
+                <button className="w-full bg-cyber-600 hover:bg-cyber-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    {data.ui.contact.form.send} <SendIconLucide size={18} />
+                </button>
+            </form>
+        </div>
+    </section>
+);
+
+const Footer = ({ text }: { text: string }) => (
+    <footer className="py-8 border-t border-slate-800 bg-slate-950 text-center text-slate-500 text-sm">
+        <p className="mb-2">© {new Date().getFullYear()} Mohamed Muzamil Elrais. {text}</p>
+        <p className="text-xs text-slate-600 flex items-center justify-center gap-1">
+            Created by <a href="#" className="text-cyber-600 hover:text-cyber-500 font-medium">7Dvro for IT Solutions</a>
+        </p>
+    </footer>
+);
+
+export const App: React.FC = () => {
+  const [lang, setLang] = useState<'en' | 'ar'>('en');
+  const [data, setData] = useState<ResumeData>(dataManager.getData('en'));
+  
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  // Update data when language changes
+  useEffect(() => {
+    setData(dataManager.getData(lang));
+  }, [lang]);
+
+  // Listen for data updates (from Admin)
+  useEffect(() => {
+    const handleUpdate = () => {
+      setData(dataManager.getData(lang));
+    };
+    window.addEventListener('resumeDataUpdated', handleUpdate);
+    return () => window.removeEventListener('resumeDataUpdated', handleUpdate);
+  }, [lang]);
+
+  // Set HTML direction based on language
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
-    
-    // Optional: Switch font for Arabic
-    if (lang === 'ar') {
-      document.body.classList.add('font-arabic');
-      document.body.classList.remove('font-sans');
-    } else {
-      document.body.classList.add('font-sans');
-      document.body.classList.remove('font-arabic');
-    }
   }, [lang]);
 
-  const currentData = RESUME_DATA[lang];
-
   return (
-    <div className={`bg-dark-bg text-slate-200 selection:bg-cyber-500/30 selection:text-cyber-200 ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
-      <Navbar lang={lang} setLang={setLang} t={currentData.ui} />
+    <div className="bg-dark-bg min-h-screen text-slate-200 selection:bg-cyber-500/30 selection:text-cyber-200">
+      <Navbar 
+        lang={lang} 
+        setLang={setLang} 
+        t={data.ui} 
+        onOpenLogin={() => setLoginOpen(true)}
+      />
+      
       <main>
-        <Hero data={currentData} />
-        <About data={currentData} />
-        <Experience data={currentData} />
-        <Skills data={currentData} />
-        <Projects data={currentData} onOpenGallery={() => setIsGalleryOpen(true)} />
-        <Certifications data={currentData} />
-        <Contact data={currentData} />
+        <Hero data={data} onOpenGallery={() => setGalleryOpen(true)} />
+        <About data={data} />
+        <ExperienceSection data={data} />
+        <SkillsSection data={data} />
+        <ProjectsPreviewSection data={data} onOpenGallery={() => setGalleryOpen(true)} />
+        <CertificationsSection data={data} />
+        <ContactSection data={data} />
       </main>
-      <Footer data={currentData} />
+
+      <Footer text={data.ui.footer} />
+
+      {/* Modals & Widgets */}
       <ChatWidget />
       
-      {/* Full Screen Gallery Modal */}
       <ProjectGallery 
-        isOpen={isGalleryOpen} 
-        onClose={() => setIsGalleryOpen(false)} 
-        data={currentData}
+        isOpen={galleryOpen} 
+        onClose={() => setGalleryOpen(false)} 
+        data={data}
         lang={lang}
       />
+      
+      <LoginModal 
+        isOpen={loginOpen} 
+        onClose={() => setLoginOpen(false)} 
+        onSuccess={() => {
+            setLoginOpen(false);
+            setAdminOpen(true);
+        }}
+        correctPassword={data.adminConfig?.password}
+      />
+
+      {adminOpen && (
+          <AdminDashboard 
+            currentData={data} 
+            lang={lang} 
+            onClose={() => setAdminOpen(false)}
+            onUpdate={() => setData(dataManager.getData(lang))} 
+          />
+      )}
     </div>
   );
-}
+};

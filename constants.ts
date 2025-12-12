@@ -1,51 +1,4 @@
-import { Experience, Education, Certification, SkillCategory, Project, ProjectCategory } from './types';
-
-interface ResumeData {
-  personalInfo: {
-    name: string;
-    role: string;
-    location: string;
-    phone: string;
-    email: string;
-    website: string;
-    linkedin: string;
-    github: string;
-    facebook: string;
-    stackoverflow: string;
-    objective: string;
-  };
-  experience: Experience[];
-  education: Education[];
-  certifications: Certification[];
-  skills: SkillCategory[];
-  projects: Project[];
-  ui: {
-    nav: { [key: string]: string };
-    hero: { available: string; viewWork: string; roleDesc: string; };
-    sectionTitles: { [key: string]: string };
-    contact: { 
-      title: string; 
-      subtitle: string; 
-      desc: string; 
-      form: { 
-        name: string; 
-        email: string; 
-        message: string; 
-        send: string; 
-        sending: string;
-        success: string;
-        error: string;
-      } 
-    };
-    gallery: {
-      title: string;
-      subtitle: string;
-      close: string;
-      filters: { [key in ProjectCategory]: string };
-    };
-    footer: string;
-  }
-}
+import { Experience, Education, Certification, SkillCategory, Project, ProjectCategory, ResumeData } from './types';
 
 const COMMON_INFO = {
   phone: "+249128233909",
@@ -55,13 +8,20 @@ const COMMON_INFO = {
   github: "https://github.com/7Dvro",
   facebook: "https://www.facebook.com/mohamed.muzamel.54/",
   stackoverflow: "https://stackoverflow.com/users/20082541/mohemad-muzamil",
+  image: "https://picsum.photos/seed/profile/800/800", // Default placeholder
+  resumeLink: "#"
 };
 
 // Helper to assign images based on ID to keep it consistent
 const getProjectImage = (id: string) => `https://picsum.photos/seed/${id}project/800/600`;
 
+const DEFAULT_ADMIN_CONFIG = {
+  password: "admin@123"
+};
+
 export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
   en: {
+    adminConfig: DEFAULT_ADMIN_CONFIG,
     personalInfo: {
       ...COMMON_INFO,
       name: "Mohamed Muzamil Elrais",
@@ -245,6 +205,7 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
       hero: {
         available: "Available for Hire",
         viewWork: "View Work",
+        downloadCv: "Download CV",
         roleDesc: "IT Professional & Full Stack Developer specialized in creating secure, scalable web applications and managing IT infrastructure. Master's candidate in CS."
       },
       sectionTitles: {
@@ -291,6 +252,7 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
     }
   },
   ar: {
+    adminConfig: DEFAULT_ADMIN_CONFIG,
     personalInfo: {
       ...COMMON_INFO,
       name: "محمد مزمل الريس",
@@ -474,6 +436,7 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
       hero: {
         available: "متاح للعمل",
         viewWork: "شاهد أعمالي",
+        downloadCv: "تحميل السيرة الذاتية",
         roleDesc: "متخصص تقنية معلومات ومطور شامل متخصص في إنشاء تطبيقات ويب آمنة وقابلة للتطوير وإدارة البنية التحتية لتكنولوجيا المعلومات. طالب ماجستير في علوم الكمبيوتر."
       },
       sectionTitles: {
