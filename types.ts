@@ -1,3 +1,4 @@
+
 export interface Experience {
   id: string;
   role: string;
@@ -17,6 +18,9 @@ export interface Certification {
   id: string;
   title: string;
   issuer?: string;
+  image?: string; // New field for certificate image
+  link?: string;  // New field for credential URL
+  date?: string;
 }
 
 export interface SkillCategory {

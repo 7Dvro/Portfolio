@@ -1,3 +1,4 @@
+
 import { Experience, Education, Certification, SkillCategory, Project, ProjectCategory, ResumeData } from './types';
 
 const COMMON_INFO = {
@@ -14,10 +15,78 @@ const COMMON_INFO = {
 
 // Helper to assign images based on ID to keep it consistent
 const getProjectImage = (id: string) => `https://picsum.photos/seed/${id}project/800/600`;
+// Helper for cert images - using placeholders with text until user uploads real screenshots via Admin Dashboard
+const getCertImage = (text: string) => `https://placehold.co/600x400/0f172a/2dd4bf?text=${encodeURIComponent(text)}&font=roboto`;
 
 const DEFAULT_ADMIN_CONFIG = {
   password: "admin@123"
 };
+
+const CERTIFICATIONS_LIST: Certification[] = [
+  { 
+    id: "1", 
+    title: "CyberOps Associate", 
+    issuer: "Cisco", 
+    date: "20 Nov 2024",
+    image: getCertImage("CyberOps Associate") 
+  },
+  { 
+    id: "2", 
+    title: "Ethical Hacker", 
+    issuer: "Cisco", 
+    date: "03 Nov 2024",
+    image: getCertImage("Ethical Hacker") 
+  },
+  { 
+    id: "3", 
+    title: "Introduction to Cybersecurity", 
+    issuer: "Cisco", 
+    date: "04 Nov 2024",
+    image: getCertImage("Intro Cybersecurity") 
+  },
+  { 
+    id: "4", 
+    title: "Jr Penetration Tester", 
+    issuer: "TryHackMe", 
+    date: "29 Dec 2024",
+    image: getCertImage("Jr Penetration Tester") 
+  },
+  { 
+    id: "5", 
+    title: "Network Support and Security", 
+    issuer: "Cisco", 
+    date: "04 Nov 2024",
+    image: getCertImage("Network Support") 
+  },
+  { 
+    id: "6", 
+    title: "Network Technician", 
+    issuer: "Cisco", 
+    date: "04 Nov 2024",
+    image: getCertImage("Network Technician") 
+  },
+  { 
+    id: "7", 
+    title: "Operating Systems Basics", 
+    issuer: "Cisco", 
+    date: "03 Nov 2024",
+    image: getCertImage("OS Basics") 
+  },
+  { 
+    id: "8", 
+    title: "Pre Security", 
+    issuer: "TryHackMe", 
+    date: "29 Dec 2024",
+    image: getCertImage("Pre Security") 
+  },
+  { 
+    id: "9", 
+    title: "Web Fundamentals", 
+    issuer: "TryHackMe", 
+    date: "29 Dec 2024",
+    image: getCertImage("Web Fundamentals") 
+  }
+];
 
 export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
   en: {
@@ -111,18 +180,7 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
         status: "December 2022"
       }
     ],
-    certifications: [
-      { id: "1", title: "Cisco Ethical Hacking Certificate" },
-      { id: "2", title: "Cisco Network Support and Security Certificate" },
-      { id: "3", title: "Cisco CyberOps Certificate" },
-      { id: "4", title: "Cisco Introduction to Cybersecurity" },
-      { id: "5", title: "Cisco Operating Systems Basics" },
-      { id: "6", title: "Cisco Network Technician" },
-      { id: "7", title: "Jr Penetration Tester - THM" },
-      { id: "8", title: "Web Fundamentals - THM" },
-      { id: "9", title: "Cisco CCNP Core (350-401) (Training Completed)" },
-      { id: "10", title: "CompTIA Security+ (SY0-601) (Training Completed)" }
-    ],
+    certifications: CERTIFICATIONS_LIST,
     skills: [
       {
         category: "Programming",
@@ -342,18 +400,7 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
         status: "ديسمبر 2022"
       }
     ],
-    certifications: [
-      { id: "1", title: "Cisco Ethical Hacking Certificate" },
-      { id: "2", title: "Cisco Network Support and Security Certificate" },
-      { id: "3", title: "Cisco CyberOps Certificate" },
-      { id: "4", title: "Cisco Introduction to Cybersecurity" },
-      { id: "5", title: "Cisco Operating Systems Basics" },
-      { id: "6", title: "Cisco Network Technician" },
-      { id: "7", title: "Jr Penetration Tester - THM" },
-      { id: "8", title: "Web Fundamentals - THM" },
-      { id: "9", title: "Cisco CCNP Core (350-401) (Training Completed)" },
-      { id: "10", title: "CompTIA Security+ (SY0-601) (Training Completed)" }
-    ],
+    certifications: CERTIFICATIONS_LIST,
     skills: [
       {
         category: "Programming",
@@ -506,7 +553,7 @@ Skills:
 ${EN.skills.map(s => `- ${s.category}: ${s.skills.join(', ')}`).join('\n')}
 
 Certifications:
-${EN.certifications.map(c => `- ${c.title}`).join('\n')}
+${EN.certifications.map(c => `- ${c.title} (${c.issuer}, ${c.date})`).join('\n')}
 
 Projects:
 ${EN.projects.map(p => `- ${p.title} using ${p.techStack}`).join('\n')}

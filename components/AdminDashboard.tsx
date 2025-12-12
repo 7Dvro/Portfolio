@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award } from 'lucide-react';
 import { ResumeData } from '../types';
 import { dataManager } from '../utils/dataManager';
 
@@ -13,7 +14,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lang, onUpdate, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'experience' | 'skills' | 'projects' | 'ai' | 'settings'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'experience' | 'skills' | 'projects' | 'certs' | 'ai' | 'settings'>('general');
   // Ensure adminConfig exists even if loading old data
   const [formData, setFormData] = useState<ResumeData>({
       ...JSON.parse(JSON.stringify(currentData)),
@@ -83,6 +84,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                   ...formData,
                   personalInfo: { ...formData.personalInfo, image: reader.result as string }
               });
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+  
+  const handleCertImageUpload = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          if (file.size > 1024 * 1024) {
+               alert("Image is too large. Please use an image under 1MB.");
+               return;
+          }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              const newCerts = [...formData.certifications];
+              newCerts[idx].image = reader.result as string;
+              setFormData({...formData, certifications: newCerts});
           };
           reader.readAsDataURL(file);
       }
@@ -204,6 +222,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                     className={`w-full text-start p-3 rounded-lg flex items-center gap-2 transition-colors ${activeTab === 'projects' ? 'bg-cyber-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
                 >
                     <CodeIcon /> Projects
+                </button>
+                 <button 
+                    onClick={() => setActiveTab('certs')}
+                    className={`w-full text-start p-3 rounded-lg flex items-center gap-2 transition-colors ${activeTab === 'certs' ? 'bg-cyber-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+                >
+                    <Award size={16} /> Certifications
                 </button>
                 <button 
                     onClick={() => setActiveTab('settings')}
@@ -370,7 +394,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                     </div>
                 )}
                 
-                {/* --- Other Tabs (Projects/Experience) remain the same --- */}
+                {/* --- TAB: PROJECTS --- */}
                 {activeTab === 'projects' && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center">
@@ -434,7 +458,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                         ))}
                     </div>
                 )}
+
+                {/* --- TAB: CERTIFICATIONS --- */}
+                {activeTab === 'certs' && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                             <h3 className="text-lg font-bold text-white">Certifications</h3>
+                             <button 
+                                onClick={() => setFormData({
+                                    ...formData,
+                                    certifications: [{id: Date.now().toString(), title: "New Certificate", issuer: ""}, ...formData.certifications]
+                                })}
+                                className="flex items-center gap-1 text-xs bg-cyber-600 px-3 py-1 rounded text-white"
+                             >
+                                <Plus size={14} /> Add
+                             </button>
+                        </div>
+                        {formData.certifications.map((cert, idx) => (
+                            <div key={cert.id} className="bg-slate-900 border border-slate-800 p-4 rounded-lg relative group flex gap-4">
+                                <button 
+                                    onClick={() => {
+                                        const newCerts = [...formData.certifications];
+                                        newCerts.splice(idx, 1);
+                                        setFormData({...formData, certifications: newCerts});
+                                    }}
+                                    className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-800 rounded z-10"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                                
+                                {/* Image Upload */}
+                                <div className="shrink-0 w-24 h-24 bg-slate-800 rounded border border-slate-700 relative overflow-hidden group/img">
+                                    {cert.image ? (
+                                        <img src={cert.image} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-slate-600"><Award size={24}/></div>
+                                    )}
+                                    <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                                        <Upload className="text-white" size={20} />
+                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleCertImageUpload(e, idx)} />
+                                    </label>
+                                </div>
+
+                                <div className="flex-1 space-y-3">
+                                    <Input 
+                                        label="Title" 
+                                        value={cert.title} 
+                                        onChange={(e) => {
+                                            const newCerts = [...formData.certifications];
+                                            newCerts[idx].title = e.target.value;
+                                            setFormData({...formData, certifications: newCerts});
+                                        }} 
+                                    />
+                                    <Input 
+                                        label="Issuer" 
+                                        value={cert.issuer || ''} 
+                                        onChange={(e) => {
+                                            const newCerts = [...formData.certifications];
+                                            newCerts[idx].issuer = e.target.value;
+                                            setFormData({...formData, certifications: newCerts});
+                                        }} 
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
                  
+                {/* --- TAB: EXPERIENCE --- */}
                 {activeTab === 'experience' && (
                      <div className="space-y-6">
                         <div className="flex justify-between items-center">
