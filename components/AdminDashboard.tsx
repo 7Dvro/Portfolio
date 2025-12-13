@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award } from 'lucide-react';
-import { ResumeData } from '../types';
+import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award, Layout, Tag } from 'lucide-react';
+import { ResumeData, ProjectCategory } from '../types';
 import { dataManager } from '../utils/dataManager';
 
 interface AdminDashboardProps {
@@ -106,6 +106,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
       }
   };
 
+  const handleProjectImageUpload = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          if (file.size > 1024 * 1024) {
+               alert("Image is too large. Please use an image under 1MB.");
+               return;
+          }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              const newProjects = [...formData.projects];
+              newProjects[idx].image = reader.result as string;
+              setFormData({...formData, projects: newProjects});
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
   // --- AI Update Logic ---
   const handleAiUpdate = async () => {
     if (!aiPrompt.trim()) return;
@@ -150,6 +167,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
             newData.adminConfig = formData.adminConfig;
             if(!newData.personalInfo.image) newData.personalInfo.image = formData.personalInfo.image;
             if(!newData.personalInfo.resumeLink) newData.personalInfo.resumeLink = formData.personalInfo.resumeLink;
+            
+            // Merge projects if needed to preserve images, but AI update usually overwrites text
+            // Here we assume AI returns clean data.
             
             setFormData(newData);
             setSuccessMsg('Data updated from AI analysis! Review changes and click Save.');
@@ -396,66 +416,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                 
                 {/* --- TAB: PROJECTS --- */}
                 {activeTab === 'projects' && (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                             <h3 className="text-lg font-bold text-white">Projects</h3>
+                    <div className="space-y-8">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                             <div>
+                                 <h3 className="text-lg font-bold text-white">Projects & Portfolio</h3>
+                                 <p className="text-xs text-slate-400">Manage featured projects. Drag order not supported yet, but you can add/delete.</p>
+                             </div>
                              <button 
                                 onClick={() => setFormData({
                                     ...formData,
-                                    projects: [{id: Date.now().toString(), title: "New Project", techStack: "", category: "web", description: ""}, ...formData.projects]
+                                    projects: [{id: Date.now().toString(), title: "New Project", techStack: "", category: "web", description: "", link: ""}, ...formData.projects]
                                 })}
-                                className="flex items-center gap-1 text-xs bg-cyber-600 px-3 py-1 rounded text-white"
+                                className="flex items-center gap-2 bg-cyber-600 hover:bg-cyber-500 px-4 py-2 rounded-lg text-white font-medium shadow-lg shadow-cyber-900/20"
                              >
-                                <Plus size={14} /> Add
+                                <Plus size={16} /> Add Project
                              </button>
                         </div>
-                        {formData.projects.map((project, idx) => (
-                            <div key={project.id} className="bg-slate-900 border border-slate-800 p-4 rounded-lg relative group">
-                                <button 
-                                    onClick={() => {
-                                        const newProjects = [...formData.projects];
-                                        newProjects.splice(idx, 1);
-                                        setFormData({...formData, projects: newProjects});
-                                    }}
-                                    className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-800 rounded"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input 
-                                        label="Title" 
-                                        value={project.title} 
-                                        onChange={(e) => {
-                                            const newProjects = [...formData.projects];
-                                            newProjects[idx].title = e.target.value;
-                                            setFormData({...formData, projects: newProjects});
-                                        }} 
-                                    />
-                                    <Input 
-                                        label="Tech Stack" 
-                                        value={project.techStack} 
-                                        onChange={(e) => {
-                                            const newProjects = [...formData.projects];
-                                            newProjects[idx].techStack = e.target.value;
-                                            setFormData({...formData, projects: newProjects});
-                                        }} 
-                                    />
-                                    <div className="col-span-2">
-                                        <label className="block text-xs text-slate-500 mb-1">Description</label>
-                                        <textarea
-                                            value={project.description}
-                                            onChange={(e) => {
+                        
+                        <div className="grid gap-6">
+                            {formData.projects.map((project, idx) => (
+                                <div key={project.id} className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl relative group transition-all hover:border-cyber-500/50">
+                                    <button 
+                                        onClick={() => {
+                                            if(confirm("Delete this project?")) {
                                                 const newProjects = [...formData.projects];
-                                                newProjects[idx].description = e.target.value;
+                                                newProjects.splice(idx, 1);
                                                 setFormData({...formData, projects: newProjects});
-                                            }}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-sm text-white"
-                                            rows={2}
-                                        />
+                                            }
+                                        }}
+                                        className="absolute top-4 right-4 text-slate-500 hover:text-red-500 p-2 hover:bg-slate-800 rounded-lg transition-colors z-10"
+                                        title="Delete Project"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                    
+                                    <div className="flex flex-col md:flex-row gap-6">
+                                        {/* Image Upload Area */}
+                                        <div className="w-full md:w-48 shrink-0">
+                                            <div className="aspect-video w-full bg-slate-950 rounded-lg border border-slate-700 relative overflow-hidden group/img">
+                                                {project.image ? (
+                                                    <img src={project.image} alt={project.title} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 p-4 text-center">
+                                                        <Layout size={32} className="mb-2"/>
+                                                        <span className="text-xs">No Preview</span>
+                                                    </div>
+                                                )}
+                                                <label className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white text-xs font-medium">
+                                                    <Upload size={24} className="mb-2" />
+                                                    Change Image
+                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleProjectImageUpload(e, idx)} />
+                                                </label>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 text-center mt-2">Recommended: 800x600px, Max 1MB</p>
+                                        </div>
+
+                                        {/* Inputs Area */}
+                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <Input 
+                                                label="Project Title" 
+                                                value={project.title} 
+                                                onChange={(e: any) => {
+                                                    const newProjects = [...formData.projects];
+                                                    newProjects[idx].title = e.target.value;
+                                                    setFormData({...formData, projects: newProjects});
+                                                }} 
+                                            />
+                                            
+                                            {/* Category Select */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-1"><Tag size={12}/> Category</label>
+                                                <select
+                                                    value={project.category}
+                                                    onChange={(e) => {
+                                                        const newProjects = [...formData.projects];
+                                                        newProjects[idx].category = e.target.value as ProjectCategory;
+                                                        setFormData({...formData, projects: newProjects});
+                                                    }}
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:border-cyber-500 outline-none text-sm appearance-none"
+                                                >
+                                                    <option value="web">Web Application</option>
+                                                    <option value="mobile">Mobile App</option>
+                                                    <option value="desktop">Desktop App</option>
+                                                    <option value="design">Design / UI</option>
+                                                    <option value="all">Other</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="md:col-span-2">
+                                                <Input 
+                                                    label={<span className="flex items-center gap-1"><LinkIcon size={12}/> Project URL / Link</span>}
+                                                    value={project.link || ''} 
+                                                    onChange={(e: any) => {
+                                                        const newProjects = [...formData.projects];
+                                                        newProjects[idx].link = e.target.value;
+                                                        setFormData({...formData, projects: newProjects});
+                                                    }} 
+                                                />
+                                            </div>
+
+                                            <div className="md:col-span-2">
+                                                <Input 
+                                                    label="Tech Stack (comma separated)" 
+                                                    value={project.techStack} 
+                                                    onChange={(e: any) => {
+                                                        const newProjects = [...formData.projects];
+                                                        newProjects[idx].techStack = e.target.value;
+                                                        setFormData({...formData, projects: newProjects});
+                                                    }} 
+                                                />
+                                            </div>
+
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs text-slate-500 mb-1">Description</label>
+                                                <textarea
+                                                    value={project.description}
+                                                    onChange={(e) => {
+                                                        const newProjects = [...formData.projects];
+                                                        newProjects[idx].description = e.target.value;
+                                                        setFormData({...formData, projects: newProjects});
+                                                    }}
+                                                    className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-white focus:border-cyber-500 outline-none"
+                                                    rows={3}
+                                                    placeholder="Briefly describe the project features and your role..."
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -504,7 +594,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                     <Input 
                                         label="Title" 
                                         value={cert.title} 
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newCerts = [...formData.certifications];
                                             newCerts[idx].title = e.target.value;
                                             setFormData({...formData, certifications: newCerts});
@@ -513,7 +603,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                     <Input 
                                         label="Issuer" 
                                         value={cert.issuer || ''} 
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newCerts = [...formData.certifications];
                                             newCerts[idx].issuer = e.target.value;
                                             setFormData({...formData, certifications: newCerts});
@@ -556,7 +646,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                     <Input 
                                         label="Role" 
                                         value={exp.role} 
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newExp = [...formData.experience];
                                             newExp[idx].role = e.target.value;
                                             setFormData({...formData, experience: newExp});
@@ -565,7 +655,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                     <Input 
                                         label="Company" 
                                         value={exp.company} 
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newExp = [...formData.experience];
                                             newExp[idx].company = e.target.value;
                                             setFormData({...formData, experience: newExp});
@@ -574,7 +664,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                     <Input 
                                         label="Period" 
                                         value={exp.period} 
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newExp = [...formData.experience];
                                             newExp[idx].period = e.target.value;
                                             setFormData({...formData, experience: newExp});

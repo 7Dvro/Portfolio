@@ -4,7 +4,7 @@ import { Experience, Education, Certification, SkillCategory, Project, ProjectCa
 const COMMON_INFO = {
   phone: "+249128233909",
   email: "mohemadmuzamil@gmail.com",
-  website: "https://www.7dvro.info",
+  website: "https://m7m4dm0z4m1.info/",
   linkedin: "https://www.linkedin.com/in/mohamed-elrais-257ab1241",
   github: "https://github.com/7Dvro",
   facebook: "https://www.facebook.com/mohamed.muzamel.54/",
@@ -201,8 +201,35 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
     ],
     projects: [
       {
-        id: "1",
-        title: "Sadiq Al-Taj Quranic Primary School",
+        id: "p1",
+        title: "Sudanese General Authority for Imams",
+        techStack: "Web Technologies, CMS",
+        description: "Official website for the Sudanese General Authority for Imams and Preachers (aiuag).",
+        link: "https://aiuag.org/",
+        category: "web",
+        image: getProjectImage("aiuag")
+      },
+      {
+        id: "p2",
+        title: "7Dvro Platform",
+        techStack: "Full Stack, Web System",
+        description: "A comprehensive digital platform for 7Days of Victory Reach Out.",
+        link: "https://platform.7dvro.com",
+        category: "web",
+        image: getProjectImage("7dvro")
+      },
+      {
+        id: "p3",
+        title: "Personal Portfolio",
+        techStack: "React, Tailwind, Gemini AI",
+        description: "My personal interactive portfolio showcasing my work and AI assistant.",
+        link: "https://m7m4dm0z4m1.info/",
+        category: "web",
+        image: getProjectImage("portfolio")
+      },
+      {
+        id: "p4",
+        title: "Sadiq Al-Taj Quranic School",
         techStack: "Odoo, Web Technologies",
         description: "Official website for Sadiq Al-Taj Quranic Primary School.",
         link: "https://satqs1.odoo.com",
@@ -210,41 +237,16 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
         image: getProjectImage("1")
       },
       {
-        id: "2",
-        title: "Full Stack Web Application",
-        techStack: "React Framework, SCSS, Sanity (Backend)",
-        description: "A complete modern web application with dynamic content management.",
-        category: "web",
-        image: getProjectImage("2")
-      },
-      {
-        id: "3",
-        title: "Routing an Ambulance (Mobile App)",
-        techStack: "Flutter Framework, Firebase, Google Maps",
+        id: "p5",
+        title: "Routing an Ambulance",
+        techStack: "Flutter, Firebase, Google Maps",
         description: "Mobile application for emergency response optimization.",
         category: "mobile",
         image: getProjectImage("3")
       },
       {
-        id: "4",
-        title: "E-Courses Website",
-        techStack: "WordPress",
-        description: "Educational platform for online learning.",
-        category: "web",
-        image: getProjectImage("4")
-      },
-      {
-        id: "5",
-        title: "Previous Portfolio",
-        techStack: "HTML, CSS, JavaScript",
-        description: "My previous personal portfolio website.",
-        link: "http://muzamilelrais.net/",
-        category: "design",
-        image: getProjectImage("5")
-      },
-      {
-        id: "6",
-        title: "Management System (Desktop)",
+        id: "p6",
+        title: "Management System",
         techStack: "Java, NetBeans",
         description: "Desktop application for internal resource management.",
         category: "desktop",
@@ -421,7 +423,34 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
     ],
     projects: [
       {
-        id: "1",
+        id: "p1",
+        title: "الهيئة العامة السودانية للأئمة والدعاة",
+        techStack: "تقنيات الويب, CMS",
+        description: "الموقع الرسمي للهيئة العامة السودانية للأئمة والدعاة (aiuag).",
+        link: "https://aiuag.org/",
+        category: "web",
+        image: getProjectImage("aiuag")
+      },
+      {
+        id: "p2",
+        title: "منصة 7Dvro",
+        techStack: "Full Stack, Web System",
+        description: "منصة رقمية شاملة لمنظمة 7Days of Victory Reach Out.",
+        link: "https://platform.7dvro.com",
+        category: "web",
+        image: getProjectImage("7dvro")
+      },
+      {
+        id: "p3",
+        title: "موقعي الشخصي (البورتفوليو)",
+        techStack: "React, Tailwind, Gemini AI",
+        description: "موقعي الشخصي التفاعلي الذي يعرض أعمالي ومساعد الذكاء الاصطناعي.",
+        link: "https://m7m4dm0z4m1.info/",
+        category: "web",
+        image: getProjectImage("portfolio")
+      },
+      {
+        id: "p4",
         title: "مدارس صديق التاج القرآنية",
         techStack: "Odoo, Web Technologies",
         description: "الموقع الرسمي لمدارس صديق التاج القرآنية الأساسية.",
@@ -430,40 +459,15 @@ export const RESUME_DATA: { en: ResumeData; ar: ResumeData } = {
         image: getProjectImage("1")
       },
       {
-        id: "2",
-        title: "تطبيق ويب متكامل",
-        techStack: "React Framework, SCSS, Sanity (Backend)",
-        description: "تطبيق ويب حديث متكامل مع إدارة محتوى ديناميكية.",
-        category: "web",
-        image: getProjectImage("2")
-      },
-      {
-        id: "3",
-        title: "توجيه سيارة الإسعاف (تطبيق موبايل)",
+        id: "p5",
+        title: "توجيه سيارة الإسعاف",
         techStack: "Flutter Framework, Firebase, Google Maps",
         description: "تطبيق جوال لتحسين الاستجابة للطوارئ.",
         category: "mobile",
         image: getProjectImage("3")
       },
       {
-        id: "4",
-        title: "موقع دورات إلكترونية",
-        techStack: "WordPress",
-        description: "منصة تعليمية للتعلم عبر الإنترنت.",
-        category: "web",
-        image: getProjectImage("4")
-      },
-      {
-        id: "5",
-        title: "موقع البورتفوليو السابق",
-        techStack: "HTML, CSS, JavaScript",
-        description: "موقعي الشخصي السابق.",
-        link: "http://muzamilelrais.net/",
-        category: "design",
-        image: getProjectImage("5")
-      },
-      {
-        id: "6",
+        id: "p6",
         title: "نظام إدارة (سطح مكتب)",
         techStack: "Java, NetBeans",
         description: "تطبيق سطح مكتب لإدارة الموارد الداخلية.",

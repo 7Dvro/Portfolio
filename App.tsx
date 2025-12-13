@@ -38,7 +38,8 @@ import {
   Calendar,
   MessageSquare,
   User,
-  AtSign
+  AtSign,
+  Maximize2
 } from 'lucide-react';
 import { RESUME_DATA } from './constants';
 import { ChatWidget } from './components/ChatWidget';
@@ -120,16 +121,75 @@ const Badge: React.FC<BadgeProps> = ({ children, className = "" }) => (
 
 // --- Modals ---
 
+const LivePreviewModal = ({ url, title, onClose }: { url: string | null; title: string; onClose: () => void }) => {
+    if (!url) return null;
+
+    return (
+        <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="w-full max-w-6xl h-[85vh] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 flex flex-col shadow-2xl"
+            >
+                {/* Browser Window Header */}
+                <div className="bg-slate-950 p-3 flex items-center gap-4 border-b border-slate-800">
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <div className="flex-1 bg-slate-800 rounded-md px-4 py-1.5 text-xs text-slate-400 font-mono text-center truncate relative group cursor-text select-all">
+                        <Lock size={10} className="inline mr-2" />
+                        {url}
+                    </div>
+                    <div className="flex gap-2">
+                        <a href={url} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white" title="Open in new tab">
+                            <ExternalLink size={16} />
+                        </a>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white">
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Iframe Content */}
+                <div className="flex-1 bg-white relative">
+                   <div className="absolute inset-0 flex items-center justify-center text-slate-400 z-0">
+                       <div className="flex flex-col items-center gap-2">
+                           <Loader2 className="animate-spin text-cyber-600" size={32} />
+                           <span className="text-sm">Loading Preview...</span>
+                       </div>
+                   </div>
+                   <iframe 
+                        src={url} 
+                        className="w-full h-full relative z-10" 
+                        title={`Preview of ${title}`}
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                        onError={(e) => console.log("Iframe load error", e)}
+                   />
+                   {/* Fallback overlay if iframe is blocked by X-Frame-Options (can't detect easily, but provides UX hint) */}
+                   <div className="absolute bottom-0 left-0 right-0 bg-slate-900/90 text-slate-300 text-xs p-2 text-center z-20 backdrop-blur">
+                        If the site refuses to connect, it may block embedding. <a href={url} target="_blank" rel="noreferrer" className="text-cyber-400 hover:underline">Click here to open externally.</a>
+                   </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
 const ProjectGallery = ({ 
   isOpen, 
   onClose, 
   data, 
-  lang 
+  lang,
+  onPreview
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   data: ResumeData;
   lang: 'en' | 'ar'; 
+  onPreview: (project: Project) => void;
 }) => {
   const [filter, setFilter] = useState<ProjectCategory>('all');
   const filteredProjects = data.projects.filter(p => filter === 'all' ? true : p.category === filter);
@@ -182,6 +242,15 @@ const ProjectGallery = ({
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
                         <div className="absolute bottom-4 left-4 right-4 rtl:left-auto rtl:right-4 flex justify-between items-end">
                            <Badge className="bg-black/50 backdrop-blur text-white border-none">{data.ui.gallery.filters[project.category]}</Badge>
+                           {project.link && (
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onPreview(project); }}
+                                    className="bg-cyber-600 hover:bg-cyber-500 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110"
+                                    title="Live Preview"
+                                >
+                                    <Eye size={16} />
+                                </button>
+                           )}
                         </div>
                       </div>
                       <div className="p-6 flex-1 flex flex-col">
@@ -521,7 +590,15 @@ const SkillsSection = ({ data }: { data: ResumeData }) => (
   </section>
 );
 
-const ProjectsPreviewSection = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => void }) => (
+const ProjectsPreviewSection = ({ 
+  data, 
+  onOpenGallery,
+  onPreview
+}: { 
+  data: ResumeData, 
+  onOpenGallery: () => void,
+  onPreview: (project: Project) => void
+}) => (
   <section id="projects" className="py-24">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <SectionHeading title={data.ui.sectionTitles.projects} subtitle={data.ui.sectionTitles.portfolio} />
@@ -534,8 +611,17 @@ const ProjectsPreviewSection = ({ data, onOpenGallery }: { data: ResumeData, onO
                ) : (
                    <div className="flex items-center justify-center h-full text-slate-600"><Code size={40} /></div>
                )}
-               <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                  <span className="px-6 py-2 bg-white text-slate-900 rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform">View Details</span>
+               <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm gap-2">
+                  <span className="px-5 py-2 bg-white text-slate-900 rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform hover:bg-slate-200">View Details</span>
+                  {project.link && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onPreview(project); }}
+                        className="px-3 py-2 bg-cyber-600 text-white rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform hover:bg-cyber-500 flex items-center gap-1"
+                        title="Live Preview"
+                      >
+                          <Eye size={16} /> Live
+                      </button>
+                  )}
                </div>
             </div>
             <div className="p-6 flex-1 flex flex-col bg-slate-900/50">
@@ -765,6 +851,7 @@ export const App: React.FC = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
 
   useEffect(() => { setData(dataManager.getData(lang)); }, [lang]);
   useEffect(() => {
@@ -786,13 +873,31 @@ export const App: React.FC = () => {
         <About data={data} />
         <ExperienceSection data={data} />
         <SkillsSection data={data} />
-        <ProjectsPreviewSection data={data} onOpenGallery={() => setGalleryOpen(true)} />
+        <ProjectsPreviewSection data={data} onOpenGallery={() => setGalleryOpen(true)} onPreview={setPreviewProject} />
         <CertificationsSection data={data} />
         <ContactSection data={data} />
       </main>
       <Footer text={data.ui.footer} website={data.personalInfo.website} />
       <ChatWidget />
-      <ProjectGallery isOpen={galleryOpen} onClose={() => setGalleryOpen(false)} data={data} lang={lang} />
+      
+      <ProjectGallery 
+        isOpen={galleryOpen} 
+        onClose={() => setGalleryOpen(false)} 
+        data={data} 
+        lang={lang} 
+        onPreview={setPreviewProject}
+      />
+
+      <AnimatePresence>
+        {previewProject && (
+          <LivePreviewModal 
+            url={previewProject.link || null} 
+            title={previewProject.title} 
+            onClose={() => setPreviewProject(null)} 
+          />
+        )}
+      </AnimatePresence>
+
       <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onSuccess={() => { setLoginOpen(false); setAdminOpen(true); }} correctPassword={data.adminConfig?.password} />
       {adminOpen && <AdminDashboard currentData={data} lang={lang} onClose={() => setAdminOpen(false)} onUpdate={() => setData(dataManager.getData(lang))} />}
     </div>
