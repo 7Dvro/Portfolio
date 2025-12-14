@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, Paperclip, FileText } from 'lucide-react';

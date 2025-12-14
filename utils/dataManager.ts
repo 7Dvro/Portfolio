@@ -1,3 +1,4 @@
+
 import { RESUME_DATA } from '../constants';
 import { ResumeData } from '../types';
 
