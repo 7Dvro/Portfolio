@@ -48,6 +48,13 @@ export interface ChatMessage {
   hasAttachment?: boolean;
 }
 
+export interface ThemePalette {
+  id: string;
+  name: string;
+  primary: string; // The main hex color
+  colors: { [key: number]: string }; // The generated tailwind palette
+}
+
 export interface ResumeData {
   adminConfig?: {
     password?: string;
@@ -72,6 +79,7 @@ export interface ResumeData {
   certifications: Certification[];
   skills: SkillCategory[];
   projects: Project[];
+  customThemes?: ThemePalette[]; // New field for user-added themes
   ui: {
     nav: { [key: string]: string };
     hero: { available: string; viewWork: string; downloadCv: string; roleDesc: string; };

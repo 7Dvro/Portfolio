@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award, Layout, Tag, FileText } from 'lucide-react';
-import { ResumeData, ProjectCategory } from '../types';
+import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award, Layout, Tag, FileText, Palette, Sparkles } from 'lucide-react';
+import { ResumeData, ProjectCategory, ThemePalette } from '../types';
 import { dataManager } from '../utils/dataManager';
 
 interface AdminDashboardProps {
@@ -14,7 +14,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lang, onUpdate, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'experience' | 'skills' | 'projects' | 'certs' | 'ai' | 'settings'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'experience' | 'skills' | 'projects' | 'certs' | 'themes' | 'ai' | 'settings'>('general');
   // Ensure adminConfig exists even if loading old data
   const [formData, setFormData] = useState<ResumeData>({
       ...JSON.parse(JSON.stringify(currentData)),
@@ -28,6 +28,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
   // Password Change State
   const [passState, setPassState] = useState({ old: '', new: '', confirm: '' });
   const [passError, setPassError] = useState('');
+
+  // New Theme State
+  const [newThemeName, setNewThemeName] = useState('');
+  const [newThemeColor, setNewThemeColor] = useState('#14b8a6');
 
   const handleSave = () => {
     dataManager.saveData(lang, formData);
@@ -43,6 +47,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
         onClose();
     }
   };
+
+  // --- Theme Generator Helper ---
+  // Simple lightness adjustment to generate palette from single hex
+  const generatePalette = (hex: string): { [key: number]: string } => {
+    const adjustBrightness = (col: string, amount: number) => {
+        let usePound = false;
+        if (col[0] === "#") {
+            col = col.slice(1);
+            usePound = true;
+        }
+        let num = parseInt(col, 16);
+        let r = (num >> 16) + amount;
+        if (r > 255) r = 255; else if (r < 0) r = 0;
+        let b = ((num >> 8) & 0x00FF) + amount;
+        if (b > 255) b = 255; else if (b < 0) b = 0;
+        let g = (num & 0x0000FF) + amount;
+        if (g > 255) g = 255; else if (g < 0) g = 0;
+        return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+    };
+
+    return {
+        50: adjustBrightness(hex, 180),
+        100: adjustBrightness(hex, 160),
+        200: adjustBrightness(hex, 130),
+        300: adjustBrightness(hex, 90),
+        400: adjustBrightness(hex, 40),
+        500: hex, // Primary
+        600: adjustBrightness(hex, -20),
+        700: adjustBrightness(hex, -50),
+        800: adjustBrightness(hex, -80),
+        900: adjustBrightness(hex, -110),
+        950: adjustBrightness(hex, -130),
+    };
+  };
+
+  const handleAddTheme = () => {
+      if (!newThemeName.trim()) return;
+      
+      const palette = generatePalette(newThemeColor);
+      const newTheme: ThemePalette = {
+          id: `custom-${Date.now()}`,
+          name: newThemeName,
+          primary: newThemeColor,
+          colors: palette
+      };
+
+      const existingThemes = formData.customThemes || [];
+      setFormData({
+          ...formData,
+          customThemes: [...existingThemes, newTheme]
+      });
+      setNewThemeName('');
+      setSuccessMsg('New theme added! Click Save to apply.');
+  };
+
+  const handleDeleteTheme = (id: string) => {
+      if(confirm('Delete this custom theme?')) {
+          const updated = (formData.customThemes || []).filter(t => t.id !== id);
+          setFormData({...formData, customThemes: updated});
+      }
+  };
+
 
   // --- Password Logic ---
   const handleChangePassword = () => {
@@ -190,9 +256,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
             newData.adminConfig = formData.adminConfig;
             if(!newData.personalInfo.image) newData.personalInfo.image = formData.personalInfo.image;
             if(!newData.personalInfo.resumeLink) newData.personalInfo.resumeLink = formData.personalInfo.resumeLink;
-            
-            // Merge projects if needed to preserve images, but AI update usually overwrites text
-            // Here we assume AI returns clean data.
+            // Preserve custom themes
+            newData.customThemes = formData.customThemes;
             
             setFormData(newData);
             setSuccessMsg('Data updated from AI analysis! Review changes and click Save.');
@@ -273,6 +338,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                     <Award size={16} /> Certifications
                 </button>
                 <button 
+                    onClick={() => setActiveTab('themes')}
+                    className={`w-full text-start p-3 rounded-lg flex items-center gap-2 transition-colors ${activeTab === 'themes' ? 'bg-cyber-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+                >
+                    <Palette size={16} /> Themes
+                </button>
+                <button 
                     onClick={() => setActiveTab('settings')}
                     className={`w-full text-start p-3 rounded-lg flex items-center gap-2 transition-colors ${activeTab === 'settings' ? 'bg-cyber-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
                 >
@@ -294,6 +365,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                 {successMsg && (
                     <div className="mb-4 p-3 bg-green-900/30 border border-green-500/30 text-green-400 rounded-lg flex items-center gap-2">
                         <Save size={16} /> {successMsg}
+                    </div>
+                )}
+
+                {/* --- TAB: THEMES --- */}
+                {activeTab === 'themes' && (
+                    <div className="space-y-6">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Palette className="text-cyber-400" /> Custom Themes
+                        </h3>
+                        
+                        {/* Creator Panel */}
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                            <h4 className="text-white font-medium mb-4 flex items-center gap-2"><Sparkles size={16} className="text-yellow-400"/> Create New Theme</h4>
+                            <div className="flex items-end gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-xs text-slate-500 mb-1">Theme Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={newThemeName}
+                                        onChange={(e) => setNewThemeName(e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm"
+                                        placeholder="e.g., Midnight Blue"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-500 mb-1">Primary Color</label>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={newThemeColor}
+                                            onChange={(e) => setNewThemeColor(e.target.value)}
+                                            className="h-9 w-16 bg-transparent cursor-pointer rounded overflow-hidden"
+                                        />
+                                        <span className="text-xs text-slate-400 font-mono">{newThemeColor}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={handleAddTheme}
+                                    disabled={!newThemeName.trim()}
+                                    className="bg-cyber-600 hover:bg-cyber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 h-9"
+                                >
+                                    <Plus size={16} /> Add Theme
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* List */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-medium text-slate-400">Installed Custom Themes</h4>
+                            {!formData.customThemes?.length && (
+                                <p className="text-xs text-slate-600 italic">No custom themes added yet.</p>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {(formData.customThemes || []).map((theme) => (
+                                    <div key={theme.id} className="bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full border border-slate-600" style={{ backgroundColor: theme.primary }} />
+                                            <span className="text-sm text-white">{theme.name}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleDeleteTheme(theme.id)}
+                                            className="text-slate-500 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
 
