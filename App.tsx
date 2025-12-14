@@ -39,7 +39,10 @@ import {
   MessageSquare,
   User,
   AtSign,
-  Maximize2
+  Maximize2,
+  Cpu,
+  Zap,
+  Target
 } from 'lucide-react';
 import { RESUME_DATA } from './constants';
 import { ChatWidget } from './components/ChatWidget';
@@ -285,7 +288,7 @@ const CertificateModal = ({ cert, onClose }: { cert: Certification | null, onClo
         <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4" onClick={onClose}>
             <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 relative flex flex-col"
                 onClick={e => e.stopPropagation()}
@@ -442,10 +445,19 @@ const Navbar = ({ lang, setLang, t, onOpenLogin }: { lang: Lang, setLang: (l: La
 
 const Hero = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => void }) => {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
-  const handleDownload = (lang: 'en' | 'ar') => {
-      setIsGenerating(lang);
-      const atsData = dataManager.getData('en');
-      setTimeout(() => { generateATSPdf(atsData, lang); setIsGenerating(null); }, 500);
+  
+  const handleDownload = async (targetLang: 'en' | 'ar') => {
+      setIsGenerating(targetLang);
+      try {
+          // Use the updated dataManager.getData to fetch the latest data for the requested language
+          const atsData = dataManager.getData(targetLang);
+          // Await the generation so the button stays in 'loading' state
+          await generateATSPdf(atsData, targetLang);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsGenerating(null);
+      }
   };
 
   return (
@@ -517,14 +529,84 @@ const Hero = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => 
 };
 
 const About = ({ data }: { data: ResumeData }) => (
-  <section id="about" className="py-24 relative">
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+  <section id="about" className="py-24 relative overflow-hidden">
+    {/* Abstract Shapes */}
+    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyber-900/10 rounded-full blur-[100px] -z-10" />
+    <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-900/10 rounded-full blur-[80px] -z-10" />
+
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <SectionHeading title={data.ui.sectionTitles.about} subtitle={data.ui.sectionTitles.journey} />
-      <div className="bg-dark-card/30 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-cyber-900/10 rounded-full blur-3xl -z-10 group-hover:bg-cyber-900/20 transition-colors"></div>
-        <p className="text-xl md:text-2xl text-slate-300 leading-relaxed font-light text-center">
-          "{data.personalInfo.objective}"
-        </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Left Column: Text & Quote */}
+        <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="space-y-8"
+        >
+            <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-8 rounded-3xl relative">
+                <div className="absolute top-6 left-6 text-cyber-600/20"><Code size={40} /></div>
+                <p className="text-lg md:text-xl text-slate-300 leading-relaxed font-light relative z-10 pl-6 border-l-2 border-cyber-500">
+                   "{data.personalInfo.objective}"
+                </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-900/30 rounded-2xl border border-slate-800 flex items-center gap-4">
+                    <div className="p-3 bg-cyber-900/30 rounded-xl text-cyber-400">
+                        <GraduationCap size={24} />
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold text-sm">Master's Candidate</h4>
+                        <p className="text-slate-500 text-xs">Computer Science</p>
+                    </div>
+                </div>
+                <div className="p-4 bg-slate-900/30 rounded-2xl border border-slate-800 flex items-center gap-4">
+                     <div className="p-3 bg-indigo-900/30 rounded-xl text-indigo-400">
+                        <Award size={24} />
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold text-sm">Certified</h4>
+                        <p className="text-slate-500 text-xs">Cisco & Ethical Hacking</p>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+
+        {/* Right Column: Visual Highlights Grid */}
+        <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+            <div className="space-y-4 md:translate-y-8">
+                <div className="p-6 bg-slate-800/40 border border-slate-700 rounded-2xl hover:bg-slate-800/60 hover:border-cyber-500/50 transition-all group cursor-default">
+                    <Zap className="text-yellow-400 mb-3 group-hover:scale-110 transition-transform" size={28} />
+                    <h3 className="text-white font-bold text-lg mb-2">Problem Solver</h3>
+                    <p className="text-slate-400 text-sm">Turning complex requirements into seamless digital solutions.</p>
+                </div>
+                <div className="p-6 bg-slate-800/40 border border-slate-700 rounded-2xl hover:bg-slate-800/60 hover:border-indigo-500/50 transition-all group cursor-default">
+                    <Cpu className="text-indigo-400 mb-3 group-hover:scale-110 transition-transform" size={28} />
+                    <h3 className="text-white font-bold text-lg mb-2">Tech Enthusiast</h3>
+                    <p className="text-slate-400 text-sm">Always exploring the latest in Full Stack & Cyber Security.</p>
+                </div>
+            </div>
+            <div className="space-y-4">
+                 <div className="p-6 bg-slate-800/40 border border-slate-700 rounded-2xl hover:bg-slate-800/60 hover:border-teal-500/50 transition-all group cursor-default">
+                    <Target className="text-teal-400 mb-3 group-hover:scale-110 transition-transform" size={28} />
+                    <h3 className="text-white font-bold text-lg mb-2">Strategic Thinker</h3>
+                    <p className="text-slate-400 text-sm">Planning and executing IT strategies for sustainable growth.</p>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-cyber-900/40 to-slate-900/40 border border-cyber-500/30 rounded-2xl flex flex-col justify-center items-center text-center">
+                    <h3 className="text-3xl font-bold text-white mb-1">4+</h3>
+                    <p className="text-cyber-300 text-sm font-medium">Years Experience</p>
+                </div>
+            </div>
+        </motion.div>
       </div>
     </div>
   </section>
@@ -532,38 +614,72 @@ const About = ({ data }: { data: ResumeData }) => (
 
 const ExperienceSection = ({ data }: { data: ResumeData }) => (
   <section id="experience" className="py-24">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <SectionHeading title={data.ui.sectionTitles.experience} subtitle={data.ui.sectionTitles.careerPath} />
-      <div className="space-y-8 relative">
-        <div className="absolute left-8 top-0 bottom-0 w-px bg-slate-800 hidden md:block"></div>
-        {data.experience.map((exp, idx) => (
-          <div key={exp.id} className="relative pl-0 md:pl-20">
-             <div className="hidden md:flex absolute left-[27px] top-6 w-3 h-3 bg-cyber-500 rounded-full shadow-[0_0_10px_rgba(20,184,166,0.5)] z-10"></div>
-             <Card className="group">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800/50">
-                <div>
-                    <h3 className="text-2xl font-bold text-white group-hover:text-cyber-400 transition-colors">{exp.role}</h3>
-                    <div className="flex items-center gap-2 text-cyber-300 mt-1 font-medium">
-                    <Briefcase size={16} />
-                    <span>{exp.company}</span>
+      
+      <div className="relative">
+        {/* Gradient Timeline Line */}
+        <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-cyber-500 via-indigo-900 to-slate-900 rounded-full hidden md:block" />
+        <div className="absolute left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-cyber-500 via-indigo-900 to-slate-900 rounded-full md:hidden" />
+
+        <div className="space-y-12">
+            {data.experience.map((exp, idx) => (
+            <motion.div 
+                key={exp.id}
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className={`relative flex flex-col md:flex-row gap-8 ${
+                    idx % 2 === 0 ? 'md:flex-row-reverse' : ''
+                }`}
+            >
+                {/* Timeline Dot */}
+                <div className="absolute left-4 md:left-1/2 transform -translate-x-1/2 w-8 h-8 flex items-center justify-center z-10">
+                    <div className="w-4 h-4 bg-cyber-500 rounded-full shadow-[0_0_15px_rgba(20,184,166,0.6)] animate-pulse" />
+                    <div className="absolute w-8 h-8 bg-cyber-500/20 rounded-full animate-ping" />
+                </div>
+
+                {/* Content Card */}
+                <div className="ml-12 md:ml-0 md:w-1/2 px-4">
+                    <div className={`p-6 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl hover:bg-slate-800 hover:border-cyber-500/50 transition-all duration-300 group shadow-lg ${
+                         idx % 2 === 0 ? 'md:text-right' : 'md:text-left'
+                    }`}>
+                        <div className={`flex flex-col gap-2 mb-4 ${
+                             idx % 2 === 0 ? 'md:items-end' : 'md:items-start'
+                        }`}>
+                            <span className="inline-block px-3 py-1 bg-cyber-900/30 text-cyber-300 text-xs font-mono rounded-full border border-cyber-500/20">
+                                {exp.period}
+                            </span>
+                            <h3 className="text-xl md:text-2xl font-bold text-white group-hover:text-cyber-400 transition-colors">
+                                {exp.role}
+                            </h3>
+                            <div className={`flex items-center gap-2 text-slate-400 text-sm font-medium ${
+                                idx % 2 === 0 ? 'md:flex-row-reverse' : ''
+                            }`}>
+                                <Briefcase size={16} className="text-indigo-400" />
+                                {exp.company}
+                            </div>
+                        </div>
+
+                        <ul className={`space-y-3 ${idx % 2 === 0 ? 'md:items-end' : ''}`}>
+                            {exp.description.map((desc, i) => (
+                                <li key={i} className={`flex gap-3 text-slate-300 text-sm leading-relaxed ${
+                                    idx % 2 === 0 ? 'md:flex-row-reverse md:text-right' : ''
+                                }`}>
+                                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                    {desc}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 text-slate-400 bg-slate-900/50 px-4 py-2 rounded-full text-sm font-mono border border-slate-800">
-                    <div className="w-2 h-2 rounded-full bg-cyber-500 animate-pulse" />
-                    {exp.period}
-                </div>
-                </div>
-                <ul className="space-y-3">
-                {exp.description.map((desc, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-400 text-base leading-relaxed">
-                    <span className="mt-2 w-1.5 h-1.5 rounded-full bg-cyber-700 flex-shrink-0" />
-                    {desc}
-                    </li>
-                ))}
-                </ul>
-            </Card>
-          </div>
-        ))}
+
+                {/* Empty Space for Grid Balance */}
+                <div className="hidden md:block md:w-1/2" />
+            </motion.div>
+            ))}
+        </div>
       </div>
     </div>
   </section>
@@ -616,36 +732,53 @@ const ProjectsPreviewSection = ({
       <SectionHeading title={data.ui.sectionTitles.projects} subtitle={data.ui.sectionTitles.portfolio} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
         {data.projects.slice(0, 3).map((project) => (
-          <Card key={project.id} className="group cursor-pointer h-full flex flex-col p-0 overflow-hidden border-0" onClick={onOpenGallery}>
-            <div className="h-56 overflow-hidden bg-slate-800 relative">
+          <motion.div 
+            key={project.id} 
+            whileHover={{ y: -5 }}
+            className="group relative h-72 md:h-80 rounded-2xl overflow-hidden cursor-pointer border border-slate-800 shadow-xl bg-slate-900"
+            onClick={onOpenGallery}
+          >
+             {/* Background Image as Cover */}
+             <div className="absolute inset-0">
                {project.image ? (
-                   <img src={project.image} alt={project.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                   <img src={project.image} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                ) : (
-                   <div className="flex items-center justify-center h-full text-slate-600"><Code size={40} /></div>
+                   <div className="w-full h-full flex items-center justify-center bg-slate-800"><Code size={48} className="text-slate-700" /></div>
                )}
-               <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm gap-2">
-                  <span className="px-5 py-2 bg-white text-slate-900 rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform hover:bg-slate-200">View Details</span>
-                  {project.link && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onPreview(project); }}
-                        className="px-3 py-2 bg-cyber-600 text-white rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform hover:bg-cyber-500 flex items-center gap-1"
-                        title="Live Preview"
-                      >
-                          <Eye size={16} /> Live
-                      </button>
-                  )}
-               </div>
-            </div>
-            <div className="p-6 flex-1 flex flex-col bg-slate-900/50">
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyber-400 transition-colors">{project.title}</h3>
-                <p className="text-slate-400 text-sm mb-4 line-clamp-2 flex-1">{project.description}</p>
-                <div className="flex flex-wrap gap-2 mt-auto">
-                    {project.techStack.split(',').slice(0,3).map((t, i) => (
-                        <span key={i} className="text-xs text-indigo-300 bg-indigo-900/20 px-2 py-1 rounded">{t}</span>
-                    ))}
+               {/* Dark Overlay Gradient for Readability */}
+               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/50 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+             </div>
+
+             {/* Content Overlay */}
+             <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                    <div className="flex justify-between items-end mb-2">
+                         <h3 className="text-2xl font-bold text-white group-hover:text-cyber-400 transition-colors drop-shadow-md">{project.title}</h3>
+                         {project.link && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onPreview(project); }}
+                                className="bg-cyber-600/90 hover:bg-cyber-500 text-white p-2.5 rounded-full shadow-lg backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0"
+                                title="Live Preview"
+                            >
+                                <Eye size={20} />
+                            </button>
+                         )}
+                    </div>
+                    
+                    <p className="text-slate-200 text-sm mb-3 line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75 h-0 group-hover:h-auto overflow-hidden">
+                        {project.description}
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-2">
+                        {project.techStack.split(',').slice(0,3).map((t, i) => (
+                            <span key={i} className="text-xs font-mono text-indigo-100 bg-indigo-600/30 border border-indigo-400/30 px-2 py-1 rounded backdrop-blur-md shadow-sm">
+                                {t.trim()}
+                            </span>
+                        ))}
+                    </div>
                 </div>
-            </div>
-          </Card>
+             </div>
+          </motion.div>
         ))}
       </div>
       <div className="text-center">
@@ -832,7 +965,7 @@ const ContactSection = ({ data }: { data: ResumeData }) => {
     );
 };
 
-const Footer = ({ text, website }: { text: string, website: string }) => (
+const Footer = ({ text, website, resumeLink }: { text: string, website: string, resumeLink?: string }) => (
   <footer className="py-12 bg-slate-950 border-t border-slate-900 relative overflow-hidden mt-12">
     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none"></div>
     <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
@@ -840,6 +973,21 @@ const Footer = ({ text, website }: { text: string, website: string }) => (
         <a href="#home" className="text-2xl font-display font-bold text-white tracking-tight">M.Elrais</a>
         <p className="text-slate-500 mt-2 text-sm">Building digital experiences that matter.</p>
       </div>
+
+      {resumeLink && resumeLink !== '#' && (
+        <div className="mb-8 flex justify-center">
+            <a 
+                href={resumeLink}
+                download="Resume.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-cyber-500 rounded-full text-slate-300 hover:text-white transition-all text-sm group"
+            >
+                <Download size={16} className="group-hover:text-cyber-400 transition-colors" />
+                <span>Download Official Resume / تحميل السيرة الذاتية الرسمية</span>
+            </a>
+        </div>
+      )}
       
       <div className="border-t border-slate-800/50 my-8 w-1/3 mx-auto"></div>
 
@@ -889,7 +1037,7 @@ export const App: React.FC = () => {
         <CertificationsSection data={data} />
         <ContactSection data={data} />
       </main>
-      <Footer text={data.ui.footer} website={data.personalInfo.website} />
+      <Footer text={data.ui.footer} website={data.personalInfo.website} resumeLink={data.personalInfo.resumeLink} />
       <ChatWidget />
       
       <ProjectGallery 

@@ -1,215 +1,182 @@
+
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import { ResumeData } from "../types";
 
-export const generateATSPdf = (data: ResumeData, lang: 'en' | 'ar' = 'en') => {
-  // NOTE: Standard jsPDF does not support Arabic characters without a custom font.
-  // We default to English data to ensure the PDF is readable and ATS compliant.
-  // If you strictly need Arabic, you must load a Base64 font file that supports UTF-8.
+export const generateATSPdf = async (data: ResumeData, lang: 'en' | 'ar' = 'en') => {
+  const isRTL = lang === 'ar';
   
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20; // Standard 1 inch approx margin
-  const contentWidth = pageWidth - (margin * 2);
-  let cursorY = 20;
-
-  // --- Helpers ---
+  // Create a temporary container for the PDF content
+  // We use standard A4 proportions (approx 794px width at 96 DPI)
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '-10000px';
+  container.style.left = '-10000px';
+  container.style.width = '794px'; // A4 Width in pixels (96 DPI)
+  container.style.minHeight = '1123px'; // A4 Height
+  container.style.backgroundColor = '#ffffff';
+  container.style.color = '#000000';
+  container.style.fontFamily = isRTL ? 'Cairo, sans-serif' : 'Inter, sans-serif';
+  container.style.padding = '40px';
+  container.style.boxSizing = 'border-box';
+  container.dir = isRTL ? 'rtl' : 'ltr';
   
-  const checkPageBreak = (spaceNeeded: number) => {
-    if (cursorY + spaceNeeded > pageHeight - margin) {
-      doc.addPage();
-      cursorY = margin;
-      return true;
-    }
-    return false;
-  };
+  // Construct the HTML content string
+  // Using simple inline styles to ensure exact replication in canvas
+  const content = `
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Header -->
+        <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 20px;">
+            <h1 style="font-size: 32px; font-weight: 800; margin: 0 0 8px 0; color: #0f172a; text-transform: uppercase;">
+                ${data.personalInfo.name}
+            </h1>
+            <p style="font-size: 16px; margin: 0; color: #475569; font-weight: 500;">
+                ${data.personalInfo.role}
+            </p>
+            <div style="font-size: 12px; margin-top: 12px; color: #334155; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+                <span>${data.personalInfo.phone}</span> • 
+                <span>${data.personalInfo.email}</span> • 
+                <span>${data.personalInfo.location}</span>
+            </div>
+             <div style="font-size: 12px; margin-top: 8px; color: #2563eb;">
+                ${[data.personalInfo.linkedin, data.personalInfo.github, data.personalInfo.website].filter(Boolean).join(' • ')}
+            </div>
+        </div>
 
-  const addHeading = (text: string) => {
-    checkPageBreak(15);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor("#000000");
-    doc.text(text.toUpperCase(), margin, cursorY);
-    
-    // Underline
-    cursorY += 2;
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.line(margin, cursorY, pageWidth - margin, cursorY);
-    cursorY += 6;
-  };
+        <!-- Summary -->
+        ${data.personalInfo.objective ? `
+        <div>
+            <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                ${data.ui.sectionTitles.about.toUpperCase()}
+            </h2>
+            <p style="font-size: 12px; line-height: 1.6; margin: 0; color: #1e293b; text-align: justify;">
+                ${data.personalInfo.objective}
+            </p>
+        </div>
+        ` : ''}
 
-  const addBullet = (text: string) => {
-    doc.setFont("times", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor("#000000");
+        <!-- Experience -->
+        <div>
+            <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 12px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                 ${data.ui.sectionTitles.experience.toUpperCase()}
+            </h2>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                ${data.experience.map(exp => `
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                            <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: #0f172a;">${exp.role}</h3>
+                            <span style="font-size: 11px; font-weight: 600; color: #64748b; white-space: nowrap;">${exp.period}</span>
+                        </div>
+                        <div style="font-size: 12px; font-weight: 600; color: #0d9488; margin-bottom: 6px;">${exp.company}</div>
+                        <ul style="margin: 0; padding-${isRTL ? 'right' : 'left'}: 16px; font-size: 11px; color: #334155; line-height: 1.5;">
+                            ${exp.description.map(d => `<li style="margin-bottom: 2px;">${d}</li>`).join('')}
+                        </ul>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
 
-    const bullet = "• ";
-    const indent = 5;
-    const textWidth = contentWidth - indent;
-    
-    const lines = doc.splitTextToSize(text, textWidth);
-    
-    checkPageBreak(lines.length * 5);
+        <!-- Skills -->
+        <div>
+            <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 12px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                 ${data.ui.sectionTitles.skills.toUpperCase()}
+            </h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                ${data.skills.map(cat => `
+                    <div style="flex: 1; min-width: 45%;">
+                        <span style="font-size: 12px; font-weight: 700; color: #0f172a;">${cat.category}:</span>
+                        <span style="font-size: 12px; color: #334155;">${cat.skills.join(', ')}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
 
-    doc.text(bullet, margin, cursorY);
-    doc.text(lines, margin + indent, cursorY);
-    
-    cursorY += (lines.length * 5); 
-  };
+        <!-- Projects (Limit 4) -->
+        <div>
+            <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 12px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                 ${data.ui.sectionTitles.projects.toUpperCase()}
+            </h2>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                ${data.projects.slice(0, 4).map(proj => `
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                             <h3 style="font-size: 13px; font-weight: 700; margin: 0; color: #0f172a;">${proj.title}</h3>
+                             <span style="font-size: 10px; color: #64748b;">${proj.techStack}</span>
+                        </div>
+                        ${proj.description ? `<p style="font-size: 11px; margin: 2px 0 0 0; color: #334155;">${proj.description}</p>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
 
-  // --- DOCUMENT CONTENT ---
+        <!-- Education -->
+        <div>
+             <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 12px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                 ${isRTL ? 'التعليم والمؤهلات' : 'EDUCATION'}
+            </h2>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${data.education.map(edu => `
+                     <div style="display: flex; justify-content: space-between;">
+                        <div>
+                             <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${edu.institution}</div>
+                             <div style="font-size: 12px; color: #334155;">${edu.degree}</div>
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; font-weight: 600;">${edu.status}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
 
-  // 1. HEADER (Name & Contact)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
-  doc.text(data.personalInfo.name.toUpperCase(), pageWidth / 2, cursorY, { align: "center" });
-  cursorY += 8;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor("#444444");
+        <!-- Certifications (Condensed) -->
+        <div>
+             <h2 style="font-size: 18px; font-weight: 700; color: #0f766e; margin: 0 0 8px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                 ${data.ui.sectionTitles.certifications.toUpperCase()}
+            </h2>
+             <div style="font-size: 11px; color: #334155; line-height: 1.6;">
+                ${data.certifications.map(cert => `
+                    <span style="display: inline-block; margin-${isRTL ? 'left' : 'right'}: 12px;">• ${cert.title}</span>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+  `;
   
-  const contactParts = [
-      data.personalInfo.location,
-      data.personalInfo.phone,
-      data.personalInfo.email
-  ].filter(Boolean);
-  
-  doc.text(contactParts.join("  |  "), pageWidth / 2, cursorY, { align: "center" });
-  cursorY += 6;
+  container.innerHTML = content;
+  document.body.appendChild(container);
 
-  // Links
-  doc.setFontSize(10);
-  doc.setTextColor("#0000EE");
-  const linkParts = [
-    data.personalInfo.linkedin ? "LinkedIn" : "",
-    data.personalInfo.github ? "GitHub" : "",
-    data.personalInfo.website ? "Portfolio" : ""
-  ].filter(Boolean);
-  
-  // Note: We just print text for simplicity in printing, usually hyperlinks in PDFs can be tricky with positioning
-  // but we can add real links if needed. For print/ATS, text is fine.
-  doc.text(linkParts.join("  -  "), pageWidth / 2, cursorY, { align: "center" });
-  
-  cursorY += 10;
+  try {
+      // Wait for images to load if any (though currently text-heavy)
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-  // 2. SUMMARY
-  if (data.personalInfo.objective) {
-      addHeading("Professional Summary");
-      doc.setFont("times", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor("#000000");
-      const summaryLines = doc.splitTextToSize(data.personalInfo.objective, contentWidth);
-      doc.text(summaryLines, margin, cursorY);
-      cursorY += (summaryLines.length * 5) + 5;
-  }
-
-  // 3. EXPERIENCE
-  addHeading("Work Experience");
-  data.experience.forEach((exp) => {
-      checkPageBreak(25); // Minimum space for a role block
-      
-      // Role & Date
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(exp.role, margin, cursorY);
-      
-      doc.setFont("helvetica", "bold");
-      doc.text(exp.period, pageWidth - margin, cursorY, { align: "right" });
-      cursorY += 5;
-      
-      // Company
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(10);
-      doc.text(exp.company, margin, cursorY);
-      cursorY += 6;
-      
-      // Description
-      exp.description.forEach(desc => {
-          addBullet(desc);
+      const canvas = await html2canvas(container, {
+          scale: 2, // 2x scale for sharper text
+          useCORS: true, // Allow fetching profile images if CORS headers allow
+          logging: false
       });
-      cursorY += 4; // Spacing between jobs
-  });
-  cursorY += 2;
 
-  // 4. SKILLS
-  addHeading("Technical Skills");
-  data.skills.forEach(skill => {
-      checkPageBreak(10);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      const catWidth = doc.getTextWidth(skill.category + ": ");
-      doc.text(skill.category + ": ", margin, cursorY);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       
-      doc.setFont("times", "normal");
-      const skillsStr = skill.skills.join(", ");
-      const skillsLines = doc.splitTextToSize(skillsStr, contentWidth - catWidth);
-      doc.text(skillsLines, margin + catWidth, cursorY);
-      cursorY += (skillsLines.length * 5);
-  });
-  cursorY += 8;
+      // A4 dimensions in mm
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Calculate aspect ratio to fit
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
+      
+      // If content is longer than one page (rare for this ATS layout but possible), handle multipage logic?
+      // For this specific compact layout, it fits on one page. 
+      // If it overflows, users generally prefer a concise 1-page resume anyway.
+      
+      pdf.save(`Mohamed_Elrais_Resume_${lang.toUpperCase()}.pdf`);
 
-  // 5. PROJECTS
-  addHeading("Key Projects");
-  data.projects.slice(0, 4).forEach(proj => {
-      checkPageBreak(20);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(proj.title, margin, cursorY);
-      
-      // Tech Stack inline or below
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(9);
-      doc.setTextColor("#555555");
-      const techWidth = doc.getTextWidth(proj.title) + 5;
-      if (techWidth + doc.getTextWidth(proj.techStack) < contentWidth) {
-         doc.text(`[${proj.techStack}]`, margin + techWidth, cursorY);
-      }
-      cursorY += 5;
-      
-      // Description
-      if (proj.description) {
-          doc.setFont("times", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor("#000000");
-          const lines = doc.splitTextToSize(proj.description, contentWidth);
-          doc.text(lines, margin, cursorY);
-          cursorY += (lines.length * 5) + 3;
-      } else {
-          cursorY += 3;
-      }
-  });
-  cursorY += 5;
-
-  // 6. EDUCATION
-  addHeading("Education");
-  data.education.forEach(edu => {
-      checkPageBreak(15);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(edu.institution, margin, cursorY);
-      
-      doc.setFont("helvetica", "bold");
-      doc.text(edu.status, pageWidth - margin, cursorY, { align: "right" });
-      cursorY += 5;
-      
-      doc.setFont("times", "normal");
-      doc.setFontSize(10);
-      doc.text(edu.degree, margin, cursorY);
-      cursorY += 8;
-  });
-
-  // 7. CERTIFICATIONS
-  addHeading("Certifications");
-  checkPageBreak(data.certifications.length * 5);
-  data.certifications.forEach(cert => {
-      doc.setFont("times", "normal");
-      doc.setFontSize(10);
-      doc.text(`• ${cert.title}`, margin, cursorY);
-      cursorY += 5;
-  });
-
-  // Save
-  doc.save(`Mohamed_Elrais_CV_${lang.toUpperCase()}.pdf`);
+  } catch (error) {
+      console.error("PDF Generation failed:", error);
+      alert("Failed to generate PDF. Please try again.");
+  } finally {
+      document.body.removeChild(container);
+  }
 };
