@@ -481,6 +481,18 @@ const Hero = ({ data, onOpenGallery }: { data: ResumeData, onOpenGallery: () => 
                     {isGenerating === 'ar' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={18} />} CV (AR)
                   </button>
               </div>
+              {data.personalInfo.resumeLink && data.personalInfo.resumeLink !== '#' && (
+                  <a 
+                    href={data.personalInfo.resumeLink} 
+                    download="Mohamed_Elrais_Resume.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-2 group"
+                    title="Download Uploaded Resume"
+                  >
+                    <Download size={20} /> <span className="hidden lg:inline">Resume</span>
+                  </a>
+              )}
             </div>
              <div className="mt-8 flex justify-center md:justify-start gap-6">
                   <a href={data.personalInfo.linkedin} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white hover:scale-110 transition-all"><Linkedin size={28} /></a>

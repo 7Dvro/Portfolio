@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award, Layout, Tag } from 'lucide-react';
+import { Lock, Unlock, X, Save, RefreshCw, Wand2, Upload, Trash2, Plus, Download, RotateCcw, Shield, Image, Link as LinkIcon, AlertTriangle, Award, Layout, Tag, FileText } from 'lucide-react';
 import { ResumeData, ProjectCategory } from '../types';
 import { dataManager } from '../utils/dataManager';
 
@@ -70,7 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
       setSuccessMsg('Password updated! Click "Save Changes" to persist.');
   };
 
-  // --- Image Upload Logic ---
+  // --- Image & File Upload Logic ---
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
@@ -84,6 +84,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                   ...formData,
                   personalInfo: { ...formData.personalInfo, image: reader.result as string }
               });
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+  
+  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          if (file.type !== 'application/pdf') {
+              alert("Please upload a PDF file.");
+              return;
+          }
+          if (file.size > 3 * 1024 * 1024) { // 3MB limit
+               alert("File is too large. Max 3MB allowed for local storage.");
+               return;
+          }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setFormData({
+                  ...formData,
+                  personalInfo: { ...formData.personalInfo, resumeLink: reader.result as string }
+              });
+              setSuccessMsg("Resume PDF uploaded successfully!");
           };
           reader.readAsDataURL(file);
       }
@@ -379,7 +402,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                         <img src={formData.personalInfo.image || "https://picsum.photos/200"} className="w-full h-full object-cover" />
                                     </div>
                                     <div className="flex-1">
-                                        <label className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-sm text-slate-300">
+                                        <label className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-sm text-slate-300 w-fit">
                                             <Upload size={14} /> Upload Image
                                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                                         </label>
@@ -388,13 +411,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
                                 </div>
                             </div>
 
-                            {/* Resume Link */}
-                            <Input 
-                                label="Resume Download Link (PDF/Drive URL)" 
-                                name="resumeLink" 
-                                value={formData.personalInfo.resumeLink || ''} 
-                                onChange={(e: any) => setFormData({...formData, personalInfo: {...formData.personalInfo, resumeLink: e.target.value}})} 
-                            />
+                            {/* Resume Upload / Link */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-1">Resume / CV (PDF)</label>
+                                <div className="flex flex-col gap-2">
+                                    <Input 
+                                        label="" 
+                                        name="resumeLink" 
+                                        value={formData.personalInfo.resumeLink || ''} 
+                                        onChange={(e: any) => setFormData({...formData, personalInfo: {...formData.personalInfo, resumeLink: e.target.value}})} 
+                                        placeholder="Paste Link or Upload ->"
+                                    />
+                                    <label className="cursor-pointer py-2 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors flex items-center justify-center gap-2 text-sm">
+                                        <FileText size={16} /> Upload PDF Resume
+                                        <input type="file" className="hidden" accept="application/pdf" onChange={handleResumeUpload} />
+                                    </label>
+                                    <p className="text-[10px] text-slate-500">Max 3MB. Uploaded files are stored locally in browser.</p>
+                                </div>
+                            </div>
 
                             <h4 className="text-sm font-medium text-slate-400 pt-2">Social Links</h4>
                             <Input label="GitHub" name="github" value={formData.personalInfo.github} onChange={handleInfoChange} />
@@ -708,14 +742,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentData, lan
   );
 };
 
-const Input = ({ label, name, value, onChange }: any) => (
+const Input = ({ label, name, value, onChange, placeholder }: any) => (
   <div>
-    <label className="block text-sm font-medium text-slate-400 mb-1">{label}</label>
+    {label && <label className="block text-sm font-medium text-slate-400 mb-1">{label}</label>}
     <input
       type="text"
       name={name}
       value={value}
       onChange={onChange}
+      placeholder={placeholder}
       className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:border-cyber-500 outline-none text-sm"
     />
   </div>
